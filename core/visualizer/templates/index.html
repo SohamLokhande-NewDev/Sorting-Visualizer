@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sorting Visualiser</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --black: #000000;
+      --near-black: #030303;
+      --surface: #0a0a0a;
+      --sky: #38bdf8;
+      --sky-dim: #0ea5e9;
+      --sky-faint: rgba(56, 189, 248, 0.07);
+      --sky-glow: rgba(56, 189, 248, 0.12);
+      --white-faint: rgba(255, 255, 255, 0.035);
+      --border: rgba(56, 189, 248, 0.1);
+    }
+
+    html, body {
+      height: 100%;
+      background-color: var(--black);
+      color: var(--sky);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Radial vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 30%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hero {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      user-select: none;
+    }
+
+    /* Faint halo behind text */
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 520px;
+      height: 220px;
+      background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .line {
+      display: block;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+
+    .line--welcome {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.22);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 0.55rem;
+    }
+
+    .line--sorting {
+      font-size: clamp(4.5rem, 12vw, 8.5rem);
+      font-weight: 700;
+      color: var(--sky);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .line--visualiser {
+      font-size: clamp(4.5rem, 12vw, 8.5rem);
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    /* Custom cursor */
+    * { cursor: none !important; }
+
+    #cursor-dot {
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background: var(--sky);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.08s ease, background 0.2s ease;
+    }
+
+    #cursor-ring {
+      position: fixed;
+      width: 32px;
+      height: 32px;
+      border: 1.5px solid rgba(56, 189, 248, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, opacity 0.25s ease;
+    }
+
+    #cursor-trail-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9997;
+    }
+
+    /* Bottom decorative dots */
+    .dots {
+      position: fixed;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1;
+    }
+
+    .dot-dec {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--sky);
+      opacity: 0.35;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="hero" aria-label="Welcome to Sorting Visualiser">
+    <span class="line line--welcome">Welcome to</span>
+    <span class="line line--sorting">Sorting</span>
+    <span class="line line--visualiser">Visualiser.</span>
+  </main>
+
+  <div class="dots" aria-hidden="true">
+    <div class="dot-dec"></div>
+    <div class="dot-dec"></div>
+    <div class="dot-dec"></div>
+  </div>
+
+  <div id="cursor-dot"></div>
+  <div id="cursor-ring"></div>
+  <canvas id="cursor-trail-canvas"></canvas>
+
+  <script>
+    const dot   = document.getElementById('cursor-dot');
+    const ring  = document.getElementById('cursor-ring');
+    const canvas = document.getElementById('cursor-trail-canvas');
+    const ctx   = canvas.getContext('2d');
+
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    let ringPos = { x: mouse.x, y: mouse.y };
+    let particles = [];
+
+    document.addEventListener('mousemove', e => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+
+      particles.push({
+        x: e.clientX,
+        y: e.clientY,
+        alpha: 0.55,
+        radius: 3 + Math.random() * 2,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6,
+      });
+    });
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ringPos.x = lerp(ringPos.x, mouse.x, 0.12);
+      ringPos.y = lerp(ringPos.y, mouse.y, 0.12);
+
+      dot.style.left  = mouse.x + 'px';
+      dot.style.top   = mouse.y + 'px';
+      ring.style.left = ringPos.x + 'px';
+      ring.style.top  = ringPos.y + 'px';
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.alpha -= 0.028;
+        p.radius *= 0.96;
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
+        ctx.fill();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+
+</body>
+</html>

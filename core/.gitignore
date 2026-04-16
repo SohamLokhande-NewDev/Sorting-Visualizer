@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Django
+db.sqlite3
+*.log
+
+# Media files (VERY IMPORTANT)
+media/
+uploads/
+slices/
+
+# Static files (optional)
+staticfiles/
+
+# VS Code
+.vscode/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MySQL dump files (if any)
+*.sql
