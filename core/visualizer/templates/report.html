@@ -1,0 +1,762 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Report · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    body { overflow-x: hidden; }
+    .report-layout { padding-top: 64px; min-height: 100vh; position: relative; z-index: 1; }
+
+    /* ── HEADER BAND ─────────────────────────── */
+    .report-hero {
+      padding: 4rem 2rem 3rem;
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .report-eyebrow {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--sky); margin-bottom: 0.5rem;
+    }
+    .report-headline {
+      font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 700; color: var(--text-hi);
+    }
+    .report-meta { font-size: 0.82rem; color: var(--text-mid); margin-top: 0.4rem; }
+    .report-actions { display: flex; gap: 0.8rem; flex-shrink: 0; align-items: center; }
+
+    /* ── BODY ────────────────────────────────── */
+    .report-body { padding: 2.5rem 2rem; display: grid; gap: 2rem; }
+
+    /* Stats table */
+    .table-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .table-card-header {
+      padding: 1rem 1.4rem; border-bottom: 0.5px solid var(--border);
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 0.7rem 1.4rem; text-align: left;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-lo);
+      border-bottom: 0.5px solid var(--border);
+    }
+    tbody tr { border-bottom: 0.5px solid var(--border); transition: background var(--transition); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--sky-faint); }
+    tbody tr.best-row { background: rgba(52,211,153,0.05); }
+    tbody td {
+      padding: 0.85rem 1.4rem; font-size: 0.88rem; color: var(--text-mid);
+    }
+    .td-algo { font-weight: 700; color: var(--text-hi); }
+    .td-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+    }
+    .badge-best { background: rgba(52,211,153,0.12); color: #34d399; }
+    .badge-slow { background: var(--sky-faint); color: var(--sky); }
+
+    /* Two col layout for charts */
+    .report-two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+    }
+    @media (max-width: 800px) { .report-two-col { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.4rem;
+    }
+    .chart-card-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo); margin-bottom: 1rem;
+    }
+    #report-chart { width: 100%; height: 200px; display: block; }
+    #timing-chart { 
+      width: 100%; 
+      height: 200px; 
+      display: block; 
+      background: transparent;
+      border-radius: 4px;
+    }
+
+    .obs-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.4rem;
+      display: flex; flex-direction: column; gap: 0.9rem;
+    }
+    .obs-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo);
+    }
+    .obs-item { display: flex; gap: 0.8rem; align-items: flex-start; }
+    .obs-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--sky); flex-shrink: 0; margin-top: 6px;
+    }
+    .obs-text { font-size: 0.85rem; color: var(--text-mid); line-height: 1.6; }
+
+    /* PDF Preview */
+    .pdf-section {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .pdf-section-header {
+      padding: 1rem 1.4rem; border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .pdf-header-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo);
+    }
+    .pdf-preview-frame {
+      width: 100%; height: 420px; border: none; background: var(--bg3);
+      display: block;
+    }
+    .pdf-placeholder {
+      height: 420px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      color: var(--text-lo);
+    }
+    .pdf-placeholder-icon { font-size: 2.5rem; opacity: 0.4; }
+    .pdf-placeholder-text { font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    {% if user.is_authenticated %}
+      <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
+    {% else %}
+      <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+    {% endif %}
+    <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
+    <div class="profile-wrap">
+      <button id="btn-profile" class="nav-btn">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}U{% endif %}</button>
+      <div id="profile-dropdown" class="profile-dropdown">
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="report-layout">
+
+  <div class="report-hero reveal">
+    <div>
+      <div class="report-eyebrow">Performance Report</div>
+      <div class="report-headline">Algorithm Analysis</div>
+      <div class="report-meta" id="report-meta">Loading data…</div>
+    </div>
+    <div class="report-actions">
+      <a href="{% url 'visualizer' image_id=image_id %}" class="btn">← Visualiser</a>
+      <a href="{% url 'comparison' image_id=image_id %}" class="btn">Compare</a>
+      <a href="javascript:void(0)" class="btn btn-solid" id="btn-pdf">↓ Download PDF</a>
+    </div>
+  </div>
+
+  <div class="report-body">
+
+    <!-- STATS TABLE -->
+    <div class="table-card reveal">
+      <div class="table-card-header">Algorithm Statistics</div>
+      <table id="stats-table">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Frames</th>
+            <th>Time Complexity</th>
+            <th>Space Complexity</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="stats-body">
+          <tr><td colspan="5" style="color:var(--text-lo);padding:2rem;text-align:center;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CHART + OBSERVATIONS -->
+    <div class="report-two-col">
+      <div class="chart-card reveal">
+        <div class="chart-card-title">Frames Comparison</div>
+        <canvas id="report-chart"></canvas>
+      </div>
+      <div class="chart-card reveal">
+        <div class="chart-card-title">Timing Chart (from Visualizer)</div>
+        <canvas id="timing-chart" style="width:100%;height:200px;display:block;"></canvas>
+        <div id="timing-chart-placeholder" style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-lo);font-size:0.85rem;gap:0.5rem;">
+          <div style="font-size:0.9rem;">No timing data yet</div>
+          <div style="font-size:0.75rem;color:var(--text-mid);text-align:center;max-width:300px;">Run animations in the Visualizer page. Complete all 4 algorithms to see their timing lines here.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBSERVATIONS -->
+    <div class="obs-card reveal" id="obs-card">
+      <div class="obs-title">Observations</div>
+      <div style="color:var(--text-lo);font-size:0.82rem;">Loading…</div>
+    </div>
+
+    <!-- PDF PREVIEW + DOWNLOAD -->
+    <div class="pdf-section reveal">
+      <div class="pdf-section-header">
+        <span class="pdf-header-title">PDF Report Preview</span>
+        <a href="/report/pdf/{{ image_id }}/" class="btn btn-solid" download="sorting_report_{{ image_id }}.pdf">⬇ Save PDF</a>
+      </div>
+      <div id="pdf-preview-area">
+        <div class="pdf-placeholder">
+          <div class="pdf-placeholder-icon">📄</div>
+          <div class="pdf-placeholder-text">Click "↓ Download PDF" button above to generate and view the report here.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  // Polyfill for roundRect
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'undefined') r = [0, 0, 0, 0];
+      if (typeof r === 'number') r = [r, r, r, r];
+      this.beginPath();
+      this.moveTo(x + r[0], y);
+      this.lineTo(x + w - r[1], y);
+      this.arc(x + w - r[1], y + r[1], r[1], -Math.PI/2, 0);
+      this.lineTo(x + w, y + h - r[2]);
+      this.arc(x + w - r[2], y + h - r[2], r[2], 0, Math.PI/2);
+      this.lineTo(x + r[3], y + h);
+      this.arc(x + r[3], y + h - r[3], r[3], Math.PI/2, Math.PI);
+      this.lineTo(x, y + r[0]);
+      this.arc(x + r[0], y + r[0], r[0], Math.PI, 3*Math.PI/2);
+      this.closePath();
+    };
+  }
+
+  const IMAGE_ID = "{{ image_id }}";
+  const ALGOS  = ['bubble', 'insertion', 'quick', 'merge'];
+  const LABELS = { bubble:'Bubble Sort', insertion:'Insertion Sort', quick:'Quick Sort', merge:'Merge Sort' };
+  const COLORS = { bubble:'#38bdf8', insertion:'#818cf8', quick:'#34d399', merge:'#fb923c' };
+  const COMPLEXITY = {
+    bubble:    { time:'O(n²)',        space:'O(1)' },
+    insertion: { time:'O(n²)',        space:'O(1)' },
+    quick:     { time:'O(n log n)',   space:'O(log n)' },
+    merge:     { time:'O(n log n)',   space:'O(n)' },
+  };
+
+  let comparisonData = null;
+  let visualizerData = null;
+
+  // Load data from localStorage
+  try {
+    const compData = localStorage.getItem('comparisonData_' + IMAGE_ID);
+    const vizData = localStorage.getItem('visualizerData_' + IMAGE_ID);
+    if (compData) {
+      comparisonData = JSON.parse(compData);
+      console.log('Loaded comparison data:', comparisonData);
+    }
+    if (vizData) {
+      visualizerData = JSON.parse(vizData);
+      console.log('Loaded visualizer data:', visualizerData);
+    }
+    if (!compData && !vizData) {
+      console.log('No data found in localStorage for image:', IMAGE_ID);
+    }
+  } catch (e) {
+    console.warn('Failed to load localStorage data:', e);
+  }
+
+  fetch('/sort/' + IMAGE_ID + '/')
+    .then(r => r.json())
+    .then(data => {
+      let stats = data.stats || {};
+      
+      // Use comparison data if available
+      let vals;
+      if (comparisonData && comparisonData.stats) {
+        // Convert comparison stats array to vals structure
+        vals = comparisonData.stats.map(s => ({
+          algo: s.algo,
+          frames: parseInt(s.frames) || 0
+        }));
+        console.log('Using comparison data for vals:', vals);
+      } else {
+        // Fall back to API data
+        vals = ALGOS.map(a => ({ algo: a, frames: stats[a] || data[a]?.length || 0 }));
+        console.log('Using API data for vals:', vals);
+      }
+      
+      const minV  = Math.min(...vals.map(v => v.frames));
+
+      // Determine data source and build observations
+      let obs = [];
+      let winner = null;
+
+      if (comparisonData) {
+        // Use comparison data
+        const compWinner = comparisonData.winner;
+        const compStats = comparisonData.stats;
+        const minFrames = Math.min(...compStats.map(v => v.frames));
+        winner = compStats.find(v => v.frames === minFrames);
+        
+        obs = [
+          '🏆 <strong>' + LABELS[compWinner] + '</strong> finished first in the comparison race, demonstrating the fastest execution.',
+          'Comparison data captured from racing all 4 algorithms simultaneously on ' + comparisonData.timestamp?.split('T')[0] + '.',
+          'Merge Sort and Quick Sort both achieve O(n log n) complexity, outperforming quadratic algorithms on this input size.',
+          'Frame count during comparison directly correlates to the number of comparison/swap operations in each algorithm.'
+        ];
+      } else {
+        // Fallback to API data
+        obs = [
+          vals.find(v => v.frames === minV).algo.charAt(0).toUpperCase() + vals.find(v => v.frames === minV).algo.slice(1) + ' Sort completed in the fewest frames (' + minV + '), making it the most efficient for this input.',
+          'Merge Sort and Quick Sort both achieve O(n log n) complexity, outperforming quadratic algorithms on larger inputs.',
+          'Bubble Sort and Insertion Sort are intuitive but scale poorly. For nearly-sorted inputs, Insertion Sort approaches O(n).',
+          'Frame count is a proxy for comparison operations. A lower frame count indicates fewer steps to reach the sorted state.',
+        ];
+        winner = { algo: vals.find(v => v.frames === minV).algo, frames: minV };
+      }
+
+      document.getElementById('report-meta').innerHTML = 
+        'Image ID: ' + IMAGE_ID + ' · Slices: ' + (data.initial?.length || '—') + ' · ' + ALGOS.length + ' algorithms compared' + 
+        (comparisonData ? ' <span style="color:var(--sky);margin-left:1rem;">✓ Comparison data available</span>' : '') +
+        (visualizerData ? ' <span style="color:var(--sky);margin-left:0.5rem;">✓ Visualizer data available</span>' : '');
+
+      // Table
+      const tbody = document.getElementById('stats-body');
+      
+      // Rank algorithms by frames
+      const ranked = [...vals].sort((a, b) => a.frames - b.frames);
+      const rankMap = {};
+      ranked.forEach((v, idx) => {
+        if (idx === 0) rankMap[v.algo] = { status: 'Fastest', bg: '#10b981', text: '#fff' };
+        else if (idx === 1) rankMap[v.algo] = { status: 'Moderately Fast', bg: '#f97316', text: '#fff' };
+        else if (idx === 2) rankMap[v.algo] = { status: 'Moderately Slow', bg: '#eab308', text: '#000' };
+        else rankMap[v.algo] = { status: 'Slowest', bg: '#ef4444', text: '#fff' };
+      });
+
+      tbody.innerHTML = vals.map(({ algo, frames }) => {
+        const rank = rankMap[algo];
+        return `
+        <tr class="${frames === minV ? 'best-row' : ''}">
+          <td class="td-algo" style="color:${COLORS[algo]}">${LABELS[algo]}</td>
+          <td>${frames}</td>
+          <td>${COMPLEXITY[algo].time}</td>
+          <td>${COMPLEXITY[algo].space}</td>
+          <td><span class="td-badge" style="background:${rank.bg}; color:${rank.text}; font-weight:700;">${rank.status}</span></td>
+        </tr>`;
+      }).join('');
+
+      // Observations
+      document.getElementById('obs-card').innerHTML =
+        '<div class="obs-title">Observations</div>' +
+        obs.map(o => `<div class="obs-item"><div class="obs-dot"></div><div class="obs-text">${o}</div></div>`).join('');
+
+      // Chart (with delay to ensure DOM is ready)
+      setTimeout(() => {
+        renderChart(vals);
+      }, 50);
+      
+      // Timing chart from visualizer (after DOM is ready)
+      if (visualizerData && visualizerData.timingData) {
+        setTimeout(() => {
+          renderTimingChart(visualizerData.timingData, vals);
+        }, 100);
+      }
+
+      // PDF preview — load iframe on button click
+      const btn = document.getElementById('btn-pdf');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const area = document.getElementById('pdf-preview-area');
+          const pdfUrl = '/report/pdf/' + IMAGE_ID + '/';
+          
+          console.log('Loading PDF preview from:', pdfUrl);
+          
+          // For PDF preview, use embed with PDF.js viewer or direct iframe
+          // Some browsers handle PDF natively in iframe, others need external viewer
+          area.innerHTML = `
+            <div style="width:100%;height:500px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+              <embed src="${pdfUrl}" type="application/pdf" width="100%" height="100%" style="display:block;"/>
+            </div>
+          `;
+          
+          // Fallback: if embed doesn't work, provide download link
+          setTimeout(() => {
+            const embed = area.querySelector('embed');
+            if (!embed || !embed.offsetWidth) {
+              console.warn('PDF preview not supported in this browser, showing download option');
+              area.innerHTML = `
+                <div style="padding:2rem;text-align:center;background:var(--surface);border-radius:4px;">
+                  <div style="font-size:1.5rem;margin-bottom:1rem;">📄</div>
+                  <div style="margin-bottom:1rem;color:var(--text-mid);">PDF Preview not supported in your browser</div>
+                  <a href="${pdfUrl}" download="sorting_report_${IMAGE_ID}.pdf" 
+                     style="display:inline-block;padding:0.75rem 1.5rem;background:var(--sky);color:white;border-radius:4px;text-decoration:none;cursor:pointer;">
+                    ⬇ Download PDF Instead
+                  </a>
+                </div>
+              `;
+            }
+          }, 500);
+          
+          // Scroll to preview
+          setTimeout(() => {
+            area.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        });
+      }
+    });
+
+  function renderTimingChart(timingData, vals) {
+    const canvas = document.getElementById('timing-chart');
+    const placeholder = document.getElementById('timing-chart-placeholder');
+    
+    if (!canvas || !canvas.parentElement) {
+      console.warn('Timing chart canvas not found or not properly mounted');
+      return;
+    }
+
+    // Check if there's actual data
+    let hasData = false;
+    let totalRuns = 0;
+    for (let algo in timingData) {
+      if (timingData[algo] && timingData[algo].length > 0) {
+        hasData = true;
+        totalRuns += timingData[algo].length;
+      }
+    }
+
+    if (!hasData) {
+      console.log('No timing data available');
+      if (placeholder) {
+        placeholder.innerHTML = '<div style="text-align:center;"><div style="font-size:0.9rem;color:var(--text-lo);">No timing data yet</div><div style="font-size:0.75rem;color:var(--text-mid);margin-top:0.5rem;">Run animations in Visualizer page to capture timing data</div></div>';
+        placeholder.style.display = 'flex';
+      }
+      return;
+    }
+
+    console.log('Rendering timing chart - Total runs:', totalRuns, 'Data:', timingData);
+    if (placeholder) placeholder.style.display = 'none';
+    canvas.style.display = 'block';
+
+    // Force re-layout
+    const W = canvas.parentElement.getBoundingClientRect().width || 600;
+    const H = 200;
+    
+    canvas.width  = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Could not get canvas context');
+      return;
+    }
+    
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    // Calculate max time across all algorithms
+    let globalMaxTime = 100;
+    let maxTimingFrames = 1;
+    for (let algo in timingData) {
+      if (timingData[algo]) {
+        for (let run of timingData[algo]) {
+          if (run.times && run.times.length > 0) {
+            globalMaxTime = Math.max(globalMaxTime, Math.max(...run.times) * 1.1);
+            maxTimingFrames = Math.max(maxTimingFrames, run.times.length);
+          }
+        }
+      }
+    }
+
+    // Use the actual timing data frame count, not the frame count from vals
+    const maxFrames = maxTimingFrames || 1;
+    console.log('Chart params - maxFrames:', maxFrames, 'globalMaxTime:', globalMaxTime, 'maxTimingFrames:', maxTimingFrames);
+    
+    const PAD_L = 50, PAD_R = 20, PAD_T = 30, PAD_B = 40;
+    const chartW = W - PAD_L - PAD_R;
+    const chartH = H - PAD_T - PAD_B;
+
+    const isLight = document.body.classList.contains('light');
+    const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+    const textColor = isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.35)';
+    const axisColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.1)';
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines (horizontal)
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = PAD_T + chartH - (i / 4) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, y);
+      ctx.lineTo(PAD_L + chartW, y);
+      ctx.stroke();
+      ctx.fillStyle = textColor;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      const timeVal = (globalMaxTime * i / 4 / 1000).toFixed(1);
+      ctx.fillText(timeVal + 's', PAD_L - 6, y + 3);
+    }
+
+    // Draw all timing runs
+    const ALGOS = ['bubble', 'insertion', 'quick', 'merge'];
+    const ALGO_COLORS = { bubble: '#38bdf8', insertion: '#818cf8', quick: '#34d399', merge: '#fb923c' };
+
+    ALGOS.forEach(algo => {
+      if (timingData[algo] && timingData[algo].length > 0) {
+        timingData[algo].forEach((timing, idx) => {
+          const color = ALGO_COLORS[algo];
+          const times = timing.times || [];
+          
+          if (times.length === 0) {
+            console.log('No times for', algo);
+            return;
+          }
+
+          console.log('Drawing', algo, 'with', times.length, 'data points');
+
+          // Draw line with shadow effect
+          ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          
+          let firstPoint = true;
+          times.forEach((t, frameNum) => {
+            const xPos = PAD_L + (frameNum / (maxFrames - 1 || 1)) * chartW;
+            const yPos = PAD_T + chartH - (t / globalMaxTime) * chartH;
+            
+            if (firstPoint) {
+              ctx.moveTo(xPos, yPos);
+              firstPoint = false;
+            } else {
+              ctx.lineTo(xPos, yPos);
+            }
+          });
+          ctx.stroke();
+
+          // Draw main line
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          
+          firstPoint = true;
+          times.forEach((t, frameNum) => {
+            const xPos = PAD_L + (frameNum / (maxFrames - 1 || 1)) * chartW;
+            const yPos = PAD_T + chartH - (t / globalMaxTime) * chartH;
+            
+            if (firstPoint) {
+              ctx.moveTo(xPos, yPos);
+              firstPoint = false;
+            } else {
+              ctx.lineTo(xPos, yPos);
+            }
+          });
+          ctx.stroke();
+
+          // Draw dots at each point
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 1;
+          times.forEach((t, frameNum) => {
+            const xPos = PAD_L + (frameNum / (maxFrames - 1 || 1)) * chartW;
+            const yPos = PAD_T + chartH - (t / globalMaxTime) * chartH;
+            
+            // White background for dot
+            ctx.fillStyle = isLight ? '#fff' : '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(xPos, yPos, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Colored dot
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(xPos, yPos, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.globalAlpha = 1;
+        });
+      }
+    });
+
+    // Axis
+    ctx.strokeStyle = axisColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, PAD_T);
+    ctx.lineTo(PAD_L, PAD_T + chartH);
+    ctx.lineTo(PAD_L + chartW, PAD_T + chartH);
+    ctx.stroke();
+
+    // X-axis label
+    ctx.fillStyle = textColor;
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Frames', PAD_L + chartW / 2, PAD_T + chartH + 32);
+
+    // Y-axis label
+    ctx.save();
+    ctx.translate(8, PAD_T + chartH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Time (seconds)', 0, 0);
+    ctx.restore();
+
+    // Legend
+    const ALGOS_LEGEND = ['bubble', 'insertion', 'quick', 'merge'];
+    const ALGO_LABELS_LEGEND = { bubble:'Bubble', insertion:'Insertion', quick:'Quick', merge:'Merge' };
+    const ALGO_COLORS_LEGEND = { bubble: '#38bdf8', insertion: '#818cf8', quick: '#34d399', merge: '#fb923c' };
+    
+    let legendX = PAD_L + 10;
+    const legendY = PAD_T + 8;
+    
+    ALGOS_LEGEND.forEach((algo, idx) => {
+      // Draw color box
+      ctx.fillStyle = ALGO_COLORS_LEGEND[algo];
+      ctx.fillRect(legendX, legendY, 8, 8);
+      
+      // Draw label
+      ctx.fillStyle = textColor;
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(ALGO_LABELS_LEGEND[algo], legendX + 12, legendY + 7);
+      
+      // Calculate width for next item
+      const textWidth = ctx.measureText(ALGO_LABELS_LEGEND[algo]).width;
+      legendX += 12 + textWidth + 16;
+    });
+  }
+
+  function renderChart(vals) {
+    const canvas = document.getElementById('report-chart');
+    if (!canvas) {
+      console.log('Canvas not found');
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    
+    // Proper sizing
+    const W = canvas.parentElement.getBoundingClientRect().width || 400;
+    const H = 200;
+    canvas.width  = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    console.log('renderChart - vals:', vals, 'W:', W, 'H:', H);
+    
+    const maxV = Math.max(...vals.map(v => v.frames)) || 100;
+    const PAD  = { l:44, r:12, t:16, b:36 };
+    const cW   = W - PAD.l - PAD.r;
+    const cH   = H - PAD.t - PAD.b;
+    const isLight = document.body.classList.contains('light');
+    const gridC = isLight ? 'rgba(0,0,0,0.06)'  : 'rgba(255,255,255,0.04)';
+    const textC = isLight ? 'rgba(0,0,0,0.4)'   : 'rgba(255,255,255,0.3)';
+
+    console.log('Canvas dims - W:', W, 'H:', H, 'maxV:', maxV, 'cW:', cW, 'cH:', cH);
+
+    ctx.clearRect(0, 0, W, H);
+    
+    // Grid lines
+    for (let i = 0; i <= 4; i++) {
+      const y = PAD.t + cH - (i / 4) * cH;
+      ctx.strokeStyle = gridC; 
+      ctx.lineWidth = 1;
+      ctx.beginPath(); 
+      ctx.moveTo(PAD.l, y); 
+      ctx.lineTo(PAD.l + cW, y); 
+      ctx.stroke();
+      ctx.fillStyle = textC; 
+      ctx.font = '11px sans-serif'; 
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxV * i / 4), PAD.l - 8, y + 4);
+    }
+
+    // Draw bars
+    const bW  = (cW / vals.length) * 0.55;
+    const gap = cW / vals.length;
+    
+    console.log('Bar width:', bW, 'gap:', gap);
+    
+    vals.forEach(({ algo, frames }, i) => {
+      const x    = PAD.l + gap * i + gap / 2 - bW / 2;
+      const bH   = (frames / maxV) * cH;
+      const y    = PAD.t + cH - bH;
+      
+      console.log(`Bar ${i} (${algo}): frames=${frames}, x=${x}, y=${y}, bW=${bW}, bH=${bH}`);
+      
+      // Bar fill
+      ctx.fillStyle = COLORS[algo] + 'cc';
+      ctx.fillRect(x, y, bW, bH);
+      
+      // Bar border
+      ctx.strokeStyle = COLORS[algo];
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, bW, bH);
+      
+      // Frame count text above bar
+      ctx.fillStyle = COLORS[algo]; 
+      ctx.font = 'bold 13px sans-serif'; 
+      ctx.textAlign = 'center';
+      ctx.fillText(frames, x + bW/2, y - 8);
+      
+      // Algorithm name below
+      ctx.fillStyle = textC; 
+      ctx.font = '11px sans-serif'; 
+      ctx.textAlign = 'center';
+      ctx.fillText(LABELS[algo].split(' ')[0], x + bW/2, PAD.t + cH + 18);
+    });
+    
+    console.log('✓ Rendered frame comparison bar chart with', vals.length, 'algorithms');
+  }
+
+  document.getElementById('btn-theme')?.addEventListener('click', () => {
+    setTimeout(() => {
+      fetch('/sort/' + IMAGE_ID + '/').then(r => r.json()).then(data => {
+        const stats = data.stats || {};
+        const vals = ALGOS.map(a => ({ algo:a, frames: stats[a] || data[a]?.length || 0 }));
+        renderChart(vals);
+        // Redraw timing chart on theme change
+        if (visualizerData && visualizerData.timingData) {
+          renderTimingChart(visualizerData.timingData, vals);
+        }
+      });
+    }, 60);
+  });
+</script>
+</body>
+</html>

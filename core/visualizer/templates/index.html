@@ -1,257 +1,440 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sorting Visualiser</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <style>
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :root {
-      --black: #000000;
-      --near-black: #030303;
-      --surface: #0a0a0a;
-      --sky: #38bdf8;
-      --sky-dim: #0ea5e9;
-      --sky-faint: rgba(56, 189, 248, 0.07);
-      --sky-glow: rgba(56, 189, 248, 0.12);
-      --white-faint: rgba(255, 255, 255, 0.035);
-      --border: rgba(56, 189, 248, 0.1);
-    }
-
-    html, body {
-      height: 100%;
-      background-color: var(--black);
-      color: var(--sky);
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      overflow: hidden;
-    }
-
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Subtle grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
-      background-size: 60px 60px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Radial vignette */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 30%, rgba(0,0,0,0.7) 100%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .hero {
-      position: relative;
-      z-index: 1;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
+    /* ── HERO ─────────────────────────────────────── */
+    .hero-screen {
+      height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      position: relative; z-index: 1; text-align: center;
       user-select: none;
     }
-
-    /* Faint halo behind text */
-    .hero::before {
+    .hero-screen::before {
       content: '';
-      position: absolute;
-      width: 520px;
-      height: 220px;
-      background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, var(--sky-glow) 0%, transparent 65%);
       pointer-events: none;
     }
-
-    .line {
-      display: block;
-      line-height: 1.15;
-      letter-spacing: -0.01em;
+    .hero-welcome {
+      font-size: clamp(0.9rem, 2vw, 1.2rem); font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-lo); margin-bottom: 0.6rem;
     }
-
-    .line--welcome {
-      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.22);
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      margin-bottom: 0.55rem;
+    .hero-sorting {
+      font-size: clamp(4.5rem, 12vw, 8.5rem); font-weight: 700;
+      color: var(--sky); letter-spacing: -0.03em; line-height: 1;
     }
-
-    .line--sorting {
-      font-size: clamp(4.5rem, 12vw, 8.5rem);
-      font-weight: 700;
-      color: var(--sky);
-      letter-spacing: -0.03em;
-      line-height: 1;
+    .hero-visualiser {
+      font-size: clamp(4.5rem, 12vw, 8.5rem); font-weight: 700;
+      color: var(--text-hi); letter-spacing: -0.03em; line-height: 1;
     }
-
-    .line--visualiser {
-      font-size: clamp(4.5rem, 12vw, 8.5rem);
-      font-weight: 700;
-      color: #ffffff;
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-
-    /* Custom cursor */
-    * { cursor: none !important; }
-
-    #cursor-dot {
-      position: fixed;
-      width: 6px;
-      height: 6px;
-      background: var(--sky);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 9999;
-      transform: translate(-50%, -50%);
-      transition: transform 0.08s ease, background 0.2s ease;
-    }
-
-    #cursor-ring {
-      position: fixed;
-      width: 32px;
-      height: 32px;
-      border: 1.5px solid rgba(56, 189, 248, 0.5);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 9998;
-      transform: translate(-50%, -50%);
-      transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, opacity 0.25s ease;
-    }
-
-    #cursor-trail-canvas {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 9997;
-    }
-
-    /* Bottom decorative dots */
-    .dots {
-      position: fixed;
-      bottom: 2.5rem;
-      left: 50%;
+    .hero-scroll-hint {
+      position: absolute; bottom: 2.2rem; left: 50%;
       transform: translateX(-50%);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--text-lo); font-size: 0.72rem; letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .scroll-arrow {
+      width: 18px; height: 18px; border-right: 1.5px solid var(--border-hi);
+      border-bottom: 1.5px solid var(--border-hi);
+      transform: rotate(45deg);
+      animation: bounce 1.8s infinite;
+    }
+    @keyframes bounce {
+      0%,100% { transform: rotate(45deg) translateY(0); }
+      50%      { transform: rotate(45deg) translateY(5px); }
     }
 
-    .dot-dec {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--sky);
-      opacity: 0.35;
+    /* ── DS INFO ──────────────────────────────────── */
+    .ds-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem;
+      margin-top: 2.5rem;
+    }
+    .ds-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.4rem 1.5rem;
+      transition: border-color var(--transition), transform 0.2s;
+    }
+    .ds-card:hover { border-color: var(--border-hi); transform: translateY(-3px); }
+    .ds-card-icon { font-size: 1.6rem; margin-bottom: 0.7rem; }
+    .ds-card-title {
+      font-size: 1rem; font-weight: 700; color: var(--sky); margin-bottom: 0.4rem;
+    }
+    .ds-card-body { font-size: 0.85rem; color: var(--text-mid); line-height: 1.65; }
+
+    /* Sorting highlight strip */
+    .sort-strip {
+      margin-top: 3rem; padding: 2rem;
+      background: var(--surface); border: 0.5px solid var(--border-hi);
+      border-radius: var(--radius-lg);
+    }
+    .sort-strip-title {
+      font-size: 1.3rem; font-weight: 700; color: var(--sky); margin-bottom: 1.2rem;
+    }
+    .sort-tags { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sort-tag {
+      padding: 0.4rem 1rem; border-radius: 999px;
+      border: 0.5px solid var(--border-hi);
+      font-size: 0.82rem; font-weight: 600; color: var(--sky);
+      background: var(--sky-faint);
+    }
+
+    /* ── UPLOAD ───────────────────────────────────── */
+    .upload-card {
+      max-width: 560px; margin: 2.5rem auto 0;
+      background: var(--surface); border: 0.5px solid var(--border-hi);
+      border-radius: var(--radius-lg); padding: 2.5rem;
+    }
+    .upload-title {
+      font-size: 1.4rem; font-weight: 700; color: var(--text-hi); margin-bottom: 0.4rem;
+    }
+    .upload-sub { font-size: 0.85rem; color: var(--text-mid); margin-bottom: 1.8rem; }
+
+    .form-group { margin-bottom: 1.4rem; }
+    .form-label {
+      display: block; font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-lo); margin-bottom: 0.5rem;
+    }
+    .file-input-wrap {
+      border: 1px dashed var(--border-hi); border-radius: var(--radius);
+      padding: 1.5rem; text-align: center; position: relative;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .file-input-wrap:hover { border-color: var(--sky); background: var(--sky-faint); }
+    .file-input-wrap input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+    }
+    .file-input-text { font-size: 0.88rem; color: var(--text-mid); }
+    .file-input-text span { color: var(--sky); font-weight: 600; }
+
+    .slice-row { display: flex; align-items: center; gap: 1rem; }
+    .slice-row input[type="range"] {
+      flex: 1; -webkit-appearance: none; height: 4px;
+      background: var(--border-hi); border-radius: 2px; outline: none;
+      transition: background var(--transition);
+    }
+    .slice-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--sky);
+      border: 2px solid var(--bg); transition: transform 0.15s;
+    }
+    .slice-row input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.2); }
+    .slice-val {
+      min-width: 32px; text-align: center;
+      font-size: 0.9rem; font-weight: 700; color: var(--sky);
+    }
+    .upload-submit {
+      width: 100%; padding: 0.85rem;
+      border-radius: var(--radius); border: none;
+      background: var(--text-hi); color: #000000;
+      font-family: var(--font); font-size: 0.95rem; font-weight: 700;
+      letter-spacing: 0.05em;
+      transition: background var(--transition), color var(--transition);
+    }
+    .upload-submit:hover { background: var(--sky); color: #000; }
+
+    /* ── WIKI GALLERY ─────────────────────────────── */
+    .wiki-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem; margin-top: 2.5rem;
+    }
+    .wiki-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+      transition: transform 0.25s ease, border-color var(--transition), box-shadow 0.25s;
+      text-decoration: none;
+    }
+    .wiki-card:nth-child(even) { transform: translateY(16px); }
+    .wiki-card:hover {
+      transform: translateY(-4px) !important;
+      border-color: var(--border-hi);
+      box-shadow: 0 8px 32px rgba(56,189,248,0.08);
+    }
+    body.light .wiki-card:hover { box-shadow: 0 8px 32px rgba(3,105,161,0.1); }
+    .wiki-card-img {
+      width: 100%; height: 130px; background: var(--bg3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; border-bottom: 0.5px solid var(--border);
+    }
+    .wiki-card-body { padding: 1rem 1.1rem; }
+    .wiki-card-name { font-size: 0.9rem; font-weight: 700; color: var(--sky); margin-bottom: 0.3rem; }
+    .wiki-card-desc { font-size: 0.78rem; color: var(--text-mid); line-height: 1.55; }
+    .wiki-card-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.75rem; color: var(--sky); margin-top: 0.6rem;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
 
-  <main class="hero" aria-label="Welcome to Sorting Visualiser">
-    <span class="line line--welcome">Welcome to</span>
-    <span class="line line--sorting">Sorting</span>
-    <span class="line line--visualiser">Visualiser.</span>
-  </main>
+<div class="grid-bg"></div>
 
-  <div class="dots" aria-hidden="true">
-    <div class="dot-dec"></div>
-    <div class="dot-dec"></div>
-    <div class="dot-dec"></div>
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    {% if user.is_authenticated %}
+      <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
+    {% else %}
+      <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+    {% endif %}
+    <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
+    <div class="profile-wrap">
+      <button id="btn-profile" class="nav-btn">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}U{% endif %}</button>
+      <div id="profile-dropdown" class="profile-dropdown">
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </div>
   </div>
+</nav>
 
-  <div id="cursor-dot"></div>
-  <div id="cursor-ring"></div>
-  <canvas id="cursor-trail-canvas"></canvas>
+<!-- HERO SCREEN -->
+<section class="hero-screen">
+  <p class="hero-welcome">Welcome to</p>
+  <h1 class="hero-sorting">Sorting</h1>
+  <h1 class="hero-visualiser">Visualiser.</h1>
+  <div class="hero-scroll-hint" aria-hidden="true">
+    <span>Scroll</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
 
-  <script>
-    const dot   = document.getElementById('cursor-dot');
-    const ring  = document.getElementById('cursor-ring');
-    const canvas = document.getElementById('cursor-trail-canvas');
-    const ctx   = canvas.getContext('2d');
+<!-- PAGE WRAP (scrollable content) -->
+<div class="page-wrap">
 
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    window.addEventListener('resize', () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-    });
+  <!-- DATA STRUCTURES INFO -->
+  <section class="section">
+    <div class="reveal">
+      <p class="section-label">Foundations</p>
+      <h2 class="section-title">Data Structures</h2>
+      <p class="section-sub">Understanding the building blocks that make efficient sorting possible. Each structure has unique properties that different algorithms exploit.</p>
+    </div>
+    <div class="ds-grid">
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">🧱</div>
+        <div class="ds-card-title">Arrays</div>
+        <div class="ds-card-body">Contiguous memory blocks. O(1) random access makes them ideal for in-place sorting. Most sorting algorithms operate directly on arrays.</div>
+      </div>
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">🔗</div>
+        <div class="ds-card-title">Linked Lists</div>
+        <div class="ds-card-body">Dynamic structure with pointer-based traversal. Insertion and deletion are O(1) but random access is O(n), making merge sort naturally suited.</div>
+      </div>
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">🌳</div>
+        <div class="ds-card-title">Binary Trees</div>
+        <div class="ds-card-body">Hierarchical structure. Binary search trees maintain sorted order inherently. Heap sort leverages the heap property for O(n log n) performance.</div>
+      </div>
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">🗂️</div>
+        <div class="ds-card-title">Hash Tables</div>
+        <div class="ds-card-body">Key-value storage with O(1) average lookups. Used in counting sort and radix sort variants for non-comparison based linear time sorting.</div>
+      </div>
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">📚</div>
+        <div class="ds-card-title">Stacks & Queues</div>
+        <div class="ds-card-body">LIFO and FIFO structures. Stacks drive iterative quicksort. Queues are fundamental to merge sort's merge step.</div>
+      </div>
+      <div class="card ds-card reveal">
+        <div class="ds-card-icon">🎯</div>
+        <div class="ds-card-title">Heaps</div>
+        <div class="ds-card-body">Complete binary tree with the heap property. Enables O(n log n) heap sort and efficient priority queues for scheduling algorithms.</div>
+      </div>
+    </div>
 
-    let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    let ringPos = { x: mouse.x, y: mouse.y };
-    let particles = [];
+    <div class="sort-strip reveal">
+      <div class="sort-strip-title"><span class="hl">Sorting Techniques</span> covered in this visualiser</div>
+      <div class="sort-tags">
+        <span class="sort-tag">Bubble Sort · O(n²)</span>
+        <span class="sort-tag">Insertion Sort · O(n²)</span>
+        <span class="sort-tag">Quick Sort · O(n log n)</span>
+        <span class="sort-tag">Merge Sort · O(n log n)</span>
+      </div>
+    </div>
+  </section>
 
-    document.addEventListener('mousemove', e => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
+  <hr class="divider">
 
-      particles.push({
-        x: e.clientX,
-        y: e.clientY,
-        alpha: 0.55,
-        radius: 3 + Math.random() * 2,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
-      });
-    });
+  <!-- UPLOAD SECTION -->
+  <section class="section">
+    <div class="reveal">
+      <p class="section-label">Get Started</p>
+      <h2 class="section-title">Upload Your Image</h2>
+      <p class="section-sub">Upload any image, choose how many slices to divide it into, and watch four sorting algorithms race to reconstruct it.</p>
+    </div>
 
-    function lerp(a, b, t) { return a + (b - a) * t; }
+    <div class="upload-card reveal">
+      <div class="upload-title">Configure Visualisation</div>
+      <div class="upload-sub">Supported formats: PNG, JPG, JPEG, WEBP</div>
+      <form method="POST" action="{% url 'index' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="img-file">Image File</label>
+          <div class="file-input-wrap">
+            <input type="file" id="img-file" name="image" accept="image/*" required>
+            <div class="file-input-text" id="file-label">
+              <span>Click to browse</span> or drag & drop your image here
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Number of Slices</label>
+          <div class="slice-row">
+            <input type="range" id="slice-range" name="num_slices" min="5" max="1000" value="20" step="1">
+            <span class="slice-val" id="slice-display">20</span>
+          </div>
+        </div>
+        <button type="submit" class="upload-submit">Start Visualisation →</button>
+      </form>
+    </div>
+  </section>
 
-    function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  <hr class="divider">
 
-      ringPos.x = lerp(ringPos.x, mouse.x, 0.12);
-      ringPos.y = lerp(ringPos.y, mouse.y, 0.12);
+  <!-- WIKI GALLERY -->
+  <section class="section">
+    <div class="reveal">
+      <p class="section-label">Explore Further</p>
+      <h2 class="section-title">Applications in the Real World</h2>
+      <p class="section-sub">Data structures and sorting algorithms power systems you use every day. Click any card to explore on Wikipedia.</p>
+    </div>
+    <div class="wiki-grid">
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Sorting_algorithm" target="_blank" rel="noopener">
+        <div class="wiki-card-img">⚡</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Sorting Algorithms</div>
+          <div class="wiki-card-desc">Fundamental to databases, search engines, and compilers. Efficient sorting underpins virtually all data processing.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Binary_search_tree" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🌲</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Binary Search Trees</div>
+          <div class="wiki-card-desc">Used in file systems, databases (B-Trees), and auto-complete features across modern applications.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Hash_table" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🔑</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Hash Tables</div>
+          <div class="wiki-card-desc">Power programming language interpreters, caches, and associative arrays. Used in DNS resolution and blockchain.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Heap_(data_structure)" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🏔️</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Heap Data Structure</div>
+          <div class="wiki-card-desc">Used in priority queues, operating system schedulers, Dijkstra's algorithm, and graph processing.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Graph_(abstract_data_type)" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🕸️</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Graph Structures</div>
+          <div class="wiki-card-desc">Model social networks, maps, the web itself. Google's PageRank and GPS routing rely on graph algorithms.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Dynamic_programming" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🧮</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Dynamic Programming</div>
+          <div class="wiki-card-desc">Breaks complex problems into overlapping subproblems. Essential in bioinformatics, finance, and AI planning.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Merge_sort" target="_blank" rel="noopener">
+        <div class="wiki-card-img">🔀</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Merge Sort</div>
+          <div class="wiki-card-desc">A divide-and-conquer algorithm with guaranteed O(n log n). Used by Python's Timsort and Java's Arrays.sort.</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+      <a class="wiki-card reveal" href="https://en.wikipedia.org/wiki/Quicksort" target="_blank" rel="noopener">
+        <div class="wiki-card-img">⚔️</div>
+        <div class="wiki-card-body">
+          <div class="wiki-card-name">Quick Sort</div>
+          <div class="wiki-card-desc">One of the fastest in practice. Powers C's qsort, Unix sort, and many database engines. Average O(n log n).</div>
+          <div class="wiki-card-link">Read on Wikipedia ↗</div>
+        </div>
+      </a>
+    </div>
+  </section>
 
-      dot.style.left  = mouse.x + 'px';
-      dot.style.top   = mouse.y + 'px';
-      ring.style.left = ringPos.x + 'px';
-      ring.style.top  = ringPos.y + 'px';
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">SortViz</div>
+        <p class="footer-tagline">An interactive sorting algorithm visualiser. Watch algorithms compete to reconstruct image slices in real time.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Visualise</div>
+        <a href="{% url 'index' %}">Home</a>
+        <a href="#">Visualiser</a>
+        <a href="#">Comparison</a>
+        <a href="#">Report</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Learn</div>
+        <a href="https://en.wikipedia.org/wiki/Bubble_sort" target="_blank">Bubble Sort</a>
+        <a href="https://en.wikipedia.org/wiki/Insertion_sort" target="_blank">Insertion Sort</a>
+        <a href="https://en.wikipedia.org/wiki/Quicksort" target="_blank">Quick Sort</a>
+        <a href="https://en.wikipedia.org/wiki/Merge_sort" target="_blank">Merge Sort</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Help</div>
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        <a href="{% url 'login' %}">Login</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 SortViz. Built with Django.</span>
+      <div class="deco-dots"><div class="deco-dot"></div><div class="deco-dot"></div><div class="deco-dot"></div></div>
+    </div>
+  </footer>
 
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.alpha -= 0.028;
-        p.radius *= 0.96;
-        p.x += p.vx;
-        p.y += p.vy;
+</div><!-- /page-wrap -->
 
-        if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
-        ctx.fill();
-      }
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  // Slice slider display
+  const sliceRange   = document.getElementById('slice-range');
+  const sliceDisplay = document.getElementById('slice-display');
+  sliceRange.addEventListener('input', () => sliceDisplay.textContent = sliceRange.value);
 
-      requestAnimationFrame(animate);
-    }
-
-    animate();
-  </script>
-
+  // File input label update
+  document.getElementById('img-file').addEventListener('change', function () {
+    const label = document.getElementById('file-label');
+    label.innerHTML = this.files[0]
+      ? '<span>' + this.files[0].name + '</span>'
+      : '<span>Click to browse</span> or drag & drop your image here';
+  });
+</script>
 </body>
 </html>

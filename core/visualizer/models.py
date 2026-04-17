@@ -1,4 +1,7 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .utils import slice_and_store
 
 class ImageUpload(models.Model):
     name = models.CharField(max_length=100)
@@ -30,3 +33,8 @@ class SortResult(models.Model):
 
     def __str__(self):
         return f"{self.algorithm} - {self.image.name}"
+
+@receiver(post_save, sender=ImageUpload)
+def create_slices(sender, instance, created, **kwargs):
+    if created:
+        slice_and_store(instance)

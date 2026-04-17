@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Processing · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    .proc-center {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; gap: 0;
+    }
+
+    .proc-label {
+      font-size: clamp(0.85rem, 2vw, 1rem); font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--text-lo); margin-bottom: 0.5rem;
+    }
+    .proc-word-1 {
+      font-size: clamp(3.5rem, 9vw, 6.5rem); font-weight: 700;
+      color: var(--sky); letter-spacing: -0.02em; line-height: 1;
+    }
+    .proc-word-2 {
+      font-size: clamp(3.5rem, 9vw, 6.5rem); font-weight: 700;
+      color: var(--text-hi); letter-spacing: -0.02em; line-height: 1;
+    }
+
+    /* Animated bar */
+    .proc-bar-wrap {
+      width: 220px; height: 2px; background: var(--border);
+      border-radius: 2px; overflow: hidden; margin-top: 2.5rem;
+    }
+    .proc-bar {
+      height: 100%; width: 40%;
+      background: var(--sky); border-radius: 2px;
+      animation: slide 1.4s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(650%); }
+    }
+
+    /* History fact at bottom */
+    .proc-fact {
+      position: fixed; bottom: 3rem; left: 50%;
+      transform: translateX(-50%);
+      z-index: 1; text-align: center;
+      max-width: 560px; padding: 0 1.5rem;
+    }
+    .proc-fact-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--sky); margin-bottom: 0.5rem;
+      opacity: 0.6;
+    }
+    .proc-fact-text {
+      font-size: 0.83rem; color: var(--sky);
+      line-height: 1.65; opacity: 0.45;
+    }
+
+    .deco-dots { position: fixed; bottom: 1.4rem; left: 50%; transform: translateX(-50%); z-index: 1; }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<div class="proc-center">
+  <p class="proc-label">Please wait</p>
+  <div class="proc-word-1">Processing</div>
+  <div class="proc-word-2">Image.</div>
+  <div class="proc-bar-wrap">
+    <div class="proc-bar"></div>
+  </div>
+</div>
+
+<div class="proc-fact">
+  <div class="proc-fact-label">Did you know?</div>
+  <p class="proc-fact-text" id="fact-text"></p>
+</div>
+
+<div class="deco-dots"><div class="deco-dot"></div><div class="deco-dot"></div><div class="deco-dot"></div></div>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  const facts = [
+    "Bubble Sort was one of the first sorting algorithms to be formally analysed — by Iverson in 1962, who also coined the term 'bubble sort'.",
+    "The Merge Sort algorithm was invented by John von Neumann in 1945, making it one of the oldest divide-and-conquer algorithms still in widespread use.",
+    "Tony Hoare invented Quick Sort in 1959 while just 25 years old, working on a project to sort words for machine translation in Russian.",
+    "Donald Knuth's 'The Art of Computer Programming' (1968) dedicates an entire volume to sorting and searching, cementing their place in CS history.",
+    "The word 'algorithm' derives from 'al-Khwārizmī', a 9th-century Persian mathematician whose works introduced the Hindu–Arabic numeral system to Europe.",
+    "Shell Sort (1959), a precursor to modern gap-sequence sorting, was named after its creator Donald Shell — one of the first to improve on O(n²) sorts.",
+    "Binary Search, the complement to sorting, was first formally published by D.H. Lehmer in 1946, though its concept was used much earlier in manual card filing.",
+  ];
+  document.getElementById('fact-text').textContent = facts[Math.floor(Math.random() * facts.length)];
+
+  const redirectUrl = "{{ redirect_url }}";
+
+  setTimeout(() => {
+    window.location.href = redirectUrl;
+  }, 1500);
+
+</script>
+</body>
+</html>

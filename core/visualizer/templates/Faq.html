@@ -1,0 +1,183 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FAQ · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    body { overflow-x: hidden; }
+    .faq-layout { padding-top: 64px; min-height: 100vh; position: relative; z-index: 1; }
+
+    .faq-hero {
+      padding: 4rem 2rem 3rem; border-bottom: 0.5px solid var(--border);
+    }
+
+    .faq-body {
+      max-width: 760px; margin: 0 auto; padding: 3rem 2rem;
+      display: flex; flex-direction: column; gap: 0.6rem;
+    }
+
+    .faq-item {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      transition: border-color var(--transition);
+    }
+    .faq-item.open { border-color: var(--border-hi); }
+
+    .faq-q {
+      width: 100%; padding: 1.1rem 1.3rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      background: transparent; border: none;
+      color: var(--text-hi); font-family: var(--font); font-size: 0.9rem; font-weight: 600;
+      text-align: left;
+      transition: color var(--transition);
+    }
+    .faq-q:hover { color: var(--sky); }
+    .faq-item.open .faq-q { color: var(--sky); }
+
+    .faq-chevron {
+      width: 16px; height: 16px; flex-shrink: 0;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform 0.25s ease;
+    }
+    .faq-item.open .faq-chevron { transform: rotate(-135deg); }
+
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.25s ease;
+      padding: 0 1.3rem;
+      font-size: 0.85rem; color: var(--text-mid); line-height: 1.7;
+    }
+    .faq-item.open .faq-a {
+      max-height: 300px;
+      padding: 0 1.3rem 1.2rem;
+    }
+
+    .faq-section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--sky); margin: 2rem 0 0.8rem;
+    }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    {% if user.is_authenticated %}
+      <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
+    {% else %}
+      <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+    {% endif %}
+    <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
+    <div class="profile-wrap">
+      <button id="btn-profile" class="nav-btn">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}U{% endif %}</button>
+      <div id="profile-dropdown" class="profile-dropdown">
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="faq-layout">
+  <div class="faq-hero reveal">
+    <div style="max-width:760px;margin:0 auto;">
+      <p class="section-label">Help Centre</p>
+      <h1 class="section-title">Frequently Asked Questions</h1>
+      <p class="section-sub">Quick answers to common questions about SortViz.</p>
+    </div>
+  </div>
+
+  <div class="faq-body">
+
+    <div class="faq-section-label reveal">General</div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q">What is SortViz?<span class="faq-chevron"></span></button>
+      <div class="faq-a">SortViz is an interactive sorting algorithm visualiser that uses image slices. Upload any image, choose the number of slices, and watch Bubble, Insertion, Quick, and Merge Sort compete to reconstruct it in the correct order.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">Do I need an account to use it?<span class="faq-chevron"></span></button>
+      <div class="faq-a">No. You can upload images and run all visualisations without logging in. An account lets you save your history and download reports.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">Is my uploaded image stored permanently?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Uploaded images and their slices are stored temporarily on the server. They are associated with a unique image ID and may be cleared periodically. Do not upload sensitive or private images.</div>
+    </div>
+
+    <div class="faq-section-label reveal">Visualiser</div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q">How does the frame-based animation work?<span class="faq-chevron"></span></button>
+      <div class="faq-a">The backend pre-computes every swap and comparison step for each algorithm. Each "frame" is one step in the sorting process. The frontend plays through these frames sequentially, updating the displayed slice order at each step.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">What do the highlighted slices mean?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Sky blue highlights indicate slices being compared. Orange highlights indicate slices actively being swapped. This helps you see what the algorithm is doing at each step.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">Can I control the animation speed?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Yes. Use the Speed slider in the top control bar. Moving it right increases speed (fewer milliseconds per frame). Moving it left slows the animation down for detailed observation.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">What is the ideal number of slices?<span class="faq-chevron"></span></button>
+      <div class="faq-a">8–16 slices is a good balance for visibility and interesting animations. Fewer slices (4) complete quickly. More slices (32) produce more dramatic difference between O(n²) and O(n log n) algorithms.</div>
+    </div>
+
+    <div class="faq-section-label reveal">Algorithms</div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q">Why does Bubble Sort take so many frames?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Bubble Sort has O(n²) complexity. For n slices, it may require up to n×(n-1)/2 comparisons. With 16 slices that can be up to 120 steps, compared to ~48 for merge sort.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">Why is Merge Sort sometimes slower visually?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Merge Sort performs many moves during the merge step, creating many frames even though its total count is lower. Each frame represents one logical operation, not one visual swap.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">Which algorithm is best for image reconstruction?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Quick Sort and Merge Sort generally win on frame count. However results depend on the initial shuffle. The Report page highlights the winner for your specific run. The Comparison page lets you race all four simultaneously.</div>
+    </div>
+
+    <div class="faq-section-label reveal">Reports & PDF</div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q">How do I download a PDF report?<span class="faq-chevron"></span></button>
+      <div class="faq-a">Navigate to the Report page from the Visualiser. Click "Download PDF" — this calls the backend endpoint which generates a formatted PDF with all algorithm stats, charts, and observations.</div>
+    </div>
+    <div class="faq-item reveal">
+      <button class="faq-q">What is included in the PDF report?<span class="faq-chevron"></span></button>
+      <div class="faq-a">The PDF includes a summary table comparing all four algorithms (frames, complexity), a bar chart of performance, the best algorithm highlighted, and written observations about the run.</div>
+    </div>
+
+    <div style="height: 3rem;"></div>
+  </div>
+</div>
+
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
+    });
+  });
+</script>
+</body>
+</html>

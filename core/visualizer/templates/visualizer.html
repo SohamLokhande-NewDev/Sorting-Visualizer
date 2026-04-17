@@ -1,0 +1,265 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visualiser · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    body { overflow-x: hidden; }
+
+    /* ── TOP CONTROL BAR ─────────────────────────── */
+    .control-bar {
+      position: fixed; top: 64px; left: 0; right: 0; z-index: 400;
+      height: 56px; display: flex; align-items: center; gap: 10px;
+      padding: 0 2rem;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(12px);
+      border-bottom: 0.5px solid var(--border);
+      transition: background var(--transition);
+    }
+    body.light .control-bar { background: rgba(240,244,248,0.85); }
+
+    .algo-btn {
+      padding: 0 1.1rem; height: 34px;
+      border-radius: 8px; border: 0.5px solid var(--border);
+      background: transparent; color: var(--text-mid);
+      font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+      transition: all var(--transition);
+    }
+    .algo-btn:hover { border-color: var(--border-hi); color: var(--sky); }
+    .algo-btn.active {
+      background: var(--sky-faint); border-color: var(--sky);
+      color: var(--sky);
+    }
+
+    .ctrl-sep { width: 0.5px; height: 20px; background: var(--border); margin: 0 4px; }
+
+    .ctrl-btn {
+      width: 34px; height: 34px; border-radius: 8px;
+      border: 0.5px solid var(--border); background: transparent;
+      color: var(--text-mid); font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--transition);
+    }
+    .ctrl-btn:hover { border-color: var(--border-hi); color: var(--sky); }
+    .ctrl-btn.playing { color: var(--sky); border-color: var(--sky); }
+
+    .speed-label { font-size: 0.75rem; color: var(--text-lo); }
+    .speed-input {
+      width: 80px; -webkit-appearance: none; height: 3px;
+      background: var(--border-hi); border-radius: 2px; outline: none;
+    }
+    .speed-input::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 13px; height: 13px;
+      border-radius: 50%; background: var(--sky); border: 2px solid var(--bg);
+    }
+
+    .ctrl-ml { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .frame-counter { font-size: 0.78rem; color: var(--text-lo); font-variant-numeric: tabular-nums; }
+
+    /* ── MAIN AREA ───────────────────────────────── */
+    .viz-layout {
+      padding-top: calc(64px + 56px + 2rem);
+      min-height: 100vh; display: flex; flex-direction: column;
+      position: relative; z-index: 1;
+    }
+
+    .viz-body {
+      display: flex; gap: 1.5rem; padding: 0 2rem;
+      flex: 1;
+    }
+
+    /* Slices area */
+    .slices-wrap {
+      flex: 1; display: flex; flex-direction: column; gap: 1rem;
+    }
+    .slices-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo);
+    }
+    .slices-stage {
+      display: flex; align-items: flex-end; gap: 3px;
+      height: 320px; padding: 1.5rem;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+      transition: border-color var(--transition);
+    }
+    .slice-img {
+      flex: 1; height: 100%; min-width: 0;
+      object-fit: cover; border-radius: 3px;
+      transition: transform 0.3s ease, box-shadow 0.3s;
+    }
+    .slice-img.comparing {
+      box-shadow: 0 0 0 2px var(--sky);
+      transform: scaleY(1.04);
+    }
+    .slice-img.swapping {
+      box-shadow: 0 0 0 2px #f97316;
+      transform: scaleY(1.08);
+    }
+
+    /* Right panel */
+    .side-panel {
+      width: 260px; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .panel-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.2rem 1.3rem;
+      transition: border-color var(--transition);
+    }
+    .panel-card-title {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo); margin-bottom: 0.8rem;
+    }
+    .algo-name {
+      font-size: 1.5rem; font-weight: 700; color: var(--sky); line-height: 1.1;
+    }
+    .algo-complexity { font-size: 0.78rem; color: var(--text-mid); margin-top: 0.3rem; }
+
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 0; border-bottom: 0.5px solid var(--border);
+      font-size: 0.83rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-key { color: var(--text-mid); }
+    .stat-val { font-weight: 700; color: var(--sky); font-variant-numeric: tabular-nums; }
+
+    /* Progress */
+    .progress-wrap { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--sky); border-radius: 2px; transition: width 0.1s linear; }
+
+    /* ── GRAPH SECTION ───────────────────────────── */
+    .graph-section {
+      padding: 2rem 2rem 3rem;
+    }
+    .graph-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--text-lo); margin-bottom: 1.2rem;
+    }
+    .graph-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.5rem;
+    }
+    #time-chart { width: 100%; height: 220px; display: block; }
+
+    /* chart legend */
+    .chart-legend {
+      display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.78rem; color: var(--text-mid);
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    {% if user.is_authenticated %}
+      <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
+    {% else %}
+      <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+    {% endif %}
+    <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
+    <div class="profile-wrap">
+      <button id="btn-profile" class="nav-btn">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}U{% endif %}</button>
+      <div id="profile-dropdown" class="profile-dropdown">
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- CONTROL BAR -->
+<div class="control-bar">
+  <button class="algo-btn active" data-algo="bubble">Bubble</button>
+  <button class="algo-btn" data-algo="insertion">Insertion</button>
+  <button class="algo-btn" data-algo="quick">Quick</button>
+  <button class="algo-btn" data-algo="merge">Merge</button>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" id="btn-play" title="Play / Pause">▶</button>
+  <button class="ctrl-btn" id="btn-reset" title="Reset">↺</button>
+  <span class="speed-label">Speed</span>
+  <input type="range" class="speed-input" id="speed-ctrl" min="50" max="800" value="300" step="50">
+  <div class="ctrl-ml">
+    <span class="frame-counter" id="frame-counter">Frame 0 / 0</span>
+    <a href="{% url 'comparison' image_id=image_id %}" class="algo-btn">Compare All →</a>
+    <a href="{% url 'report' image_id=image_id %}" class="algo-btn">Report →</a>
+  </div>
+</div>
+
+<!-- VISUALISER BODY -->
+<div class="viz-layout">
+  <div class="viz-body">
+
+    <!-- SLICES STAGE -->
+    <div class="slices-wrap">
+      <div class="slices-label">Image Slices</div>
+      <div class="slices-stage" id="slices-stage">
+        <div style="color:var(--text-lo);font-size:0.85rem;margin:auto;">Loading slices…</div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+      <div class="panel-card">
+        <div class="panel-card-title">Algorithm</div>
+        <div class="algo-name" id="algo-name">Bubble Sort</div>
+        <div class="algo-complexity" id="algo-complexity">Avg: O(n²) · Space: O(1)</div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-card-title">Stats</div>
+        <div class="stat-row"><span class="stat-key">Total Frames</span><span class="stat-val" id="stat-frames">—</span></div>
+        <div class="stat-row"><span class="stat-key">Current Frame</span><span class="stat-val" id="stat-current">0</span></div>
+        <div class="stat-row"><span class="stat-key">Slices</span><span class="stat-val" id="stat-slices">—</span></div>
+        <div class="stat-row"><span class="stat-key">Status</span><span class="stat-val" id="stat-status">Ready</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRAPH -->
+  <div class="graph-section">
+    <div class="graph-title">Algorithm Performance — Frames to Complete</div>
+    <div class="graph-card">
+      <canvas id="time-chart"></canvas>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>Bubble</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div>Insertion</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>Quick</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div>Merge</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script src="{% static 'js/visualizer.js' %}"></script>
+<script>
+  const IMAGE_ID = "{{ image_id }}";
+  initVisualizer(IMAGE_ID);
+</script>
+</body>
+</html>

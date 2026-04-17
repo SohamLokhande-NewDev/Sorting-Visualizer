@@ -1,0 +1,409 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Comparison · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    body { overflow-x: hidden; }
+
+    .comp-layout {
+      padding-top: calc(64px + 56px);
+      min-height: 100vh; position: relative; z-index: 1;
+    }
+
+    /* Control row */
+    .comp-bar {
+      position: fixed; top: 64px; left: 0; right: 0; z-index: 400;
+      height: 56px; display: flex; align-items: center; gap: 1rem;
+      padding: 0 2rem;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(12px);
+      border-bottom: 0.5px solid var(--border);
+    }
+    body.light .comp-bar { background: rgba(240,244,248,0.85); }
+
+    .comp-bar-title {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--text-lo);
+    }
+
+    .comp-ctrl-btn {
+      padding: 0 1.1rem; height: 34px; border-radius: 8px;
+      border: 0.5px solid var(--border); background: transparent;
+      color: var(--text-mid); font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+      transition: all var(--transition);
+    }
+    .comp-ctrl-btn:hover { border-color: var(--border-hi); color: var(--sky); }
+    .comp-ctrl-btn.active { background: var(--sky-faint); border-color: var(--sky); color: var(--sky); }
+
+    .comp-body {
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      .comp-body { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Each panel */
+    .panel {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+      display: flex; flex-direction: column;
+      transition: border-color var(--transition);
+    }
+    .panel:hover { border-color: var(--border-hi); }
+
+    .panel-header {
+      padding: 0.9rem 1.1rem 0.7rem;
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-algo-name {
+      font-size: 0.9rem; font-weight: 700;
+    }
+    .panel-status {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+      padding: 2px 8px; border-radius: 999px;
+      background: var(--sky-faint); color: var(--sky);
+    }
+    .panel-status.done { background: rgba(52,211,153,0.1); color: #34d399; }
+    .panel-status.winner { background: rgba(52,211,153,0.18); color: #34d399; font-size: 0.7rem; }
+
+    .panel-stage {
+      flex: 1; display: flex; align-items: flex-end; gap: 2px;
+      padding: 0.8rem; height: 220px; min-height: 220px;
+      overflow: hidden;
+    }
+    .panel-slice {
+      flex: 1; height: 100%; min-width: 0;
+      object-fit: cover; border-radius: 2px;
+      transition: transform 0.25s ease;
+    }
+    .panel-slice.comparing { box-shadow: 0 0 0 1.5px var(--sky); transform: scaleY(1.04); }
+    .panel-slice.swapping  { box-shadow: 0 0 0 1.5px #fb923c; transform: scaleY(1.07); }
+
+    .panel-footer {
+      padding: 0.6rem 1.1rem 0.8rem;
+      border-top: 0.5px solid var(--border);
+    }
+    .panel-progress-wrap { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 0.5rem; }
+    .panel-progress-fill { height: 100%; border-radius: 2px; transition: width 0.08s linear; }
+    .panel-frame-text { font-size: 0.72rem; color: var(--text-lo); font-variant-numeric: tabular-nums; }
+
+    /* Winner banner */
+    .winner-banner {
+      display: none; position: fixed; top: 128px; left: 50%;
+      transform: translateX(-50%); z-index: 600;
+      padding: 0.7rem 2rem; border-radius: var(--radius);
+      background: rgba(52,211,153,0.12); border: 0.5px solid #34d399;
+      color: #34d399; font-size: 0.88rem; font-weight: 700;
+      backdrop-filter: blur(8px);
+      animation: fadeInDown 0.4s ease;
+    }
+    .winner-banner.show { display: block; }
+    @keyframes fadeInDown { from { opacity:0; transform: translateX(-50%) translateY(-12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
+    /* Summary row */
+    .comp-summary {
+      padding: 0 2rem 3rem;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+    }
+    @media (max-width: 900px) { .comp-summary { grid-template-columns: repeat(2, 1fr); } }
+    .summary-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem;
+      text-align: left;
+    }
+    .summary-card.best { border-color: #34d399; border-width: 2px; }
+    .summary-label { font-size: 0.7rem; color: var(--text-lo); margin-bottom: 0.3rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .summary-val { font-size: 1.2rem; font-weight: 700; color: var(--sky); }
+    .summary-card.best .summary-val { color: #34d399; }
+    .summary-name { font-size: 0.78rem; color: var(--text-mid); margin-top: 0.2rem; }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    {% if user.is_authenticated %}
+      <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
+    {% else %}
+      <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+    {% endif %}
+    <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
+    <div class="profile-wrap">
+      <button id="btn-profile" class="nav-btn">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}U{% endif %}</button>
+      <div id="profile-dropdown" class="profile-dropdown">
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'faq' %}">FAQ's</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- COMP BAR -->
+<div class="comp-bar">
+  <span class="comp-bar-title">Side-by-Side Comparison</span>
+  <button class="comp-ctrl-btn active" id="btn-run-all">▶ Run All</button>
+  <button class="comp-ctrl-btn" id="btn-reset-all">↺ Reset</button>
+  <a href="{% url 'visualizer' image_id=image_id %}" class="comp-ctrl-btn">← Visualiser</a>
+  <a href="{% url 'report' image_id=image_id %}" class="comp-ctrl-btn">Report →</a>
+</div>
+
+<div class="winner-banner" id="winner-banner"></div>
+
+<div class="comp-layout">
+  <div class="comp-body" id="comp-body">
+    <!-- panels injected by JS -->
+  </div>
+  <div class="comp-summary" id="comp-summary"></div>
+</div>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  const IMAGE_ID = "{{ image_id }}";
+  const ALGOS = ['bubble', 'insertion', 'quick', 'merge'];
+  const ALGO_LABELS = { bubble:'Bubble Sort', insertion:'Insertion Sort', quick:'Quick Sort', merge:'Merge Sort' };
+  const ALGO_COLORS = { bubble:'#38bdf8', insertion:'#818cf8', quick:'#34d399', merge:'#fb923c' };
+  const ALGO_COMPLEXITY = {
+    bubble: { 
+      time: 'O(n²)', space: 'O(1)', stability: 'Stable',
+      best: 'Already sorted data (few/no swaps)',
+      worst: 'Reverse sorted or random data',
+      use_case: 'Small arrays (< 10 items), nearly sorted data'
+    },
+    insertion: { 
+      time: 'O(n²)', space: 'O(1)', stability: 'Stable',
+      best: 'Nearly sorted or small arrays',
+      worst: 'Reverse sorted data',
+      use_case: 'Small arrays (< 50 items), online sorting'
+    },
+    quick: { 
+      time: 'O(n log n)', space: 'O(log n)', stability: 'Unstable',
+      best: 'Large random datasets (100+)',
+      worst: 'Already sorted data with poor pivot',
+      use_case: 'Large datasets, general purpose, in-place'
+    },
+    merge: { 
+      time: 'O(n log n)', space: 'O(n)', stability: 'Stable',
+      best: 'Any data (guaranteed O(n log n))',
+      worst: 'No actual worst case, always O(n log n)',
+      use_case: 'External sorting, linked lists, guaranteed performance'
+    }
+  };
+
+  let sortData = null;
+  let panels   = {};
+  let timers   = {};
+  let doneCount = 0;
+  let winnerDeclared = false;
+
+  fetch('/sort/' + IMAGE_ID + '/')
+    .then(r => r.json())
+    .then(data => {
+      sortData = data;
+      buildPanels();
+      buildSummary();
+    });
+
+  function buildPanels() {
+    const body = document.getElementById('comp-body');
+    body.innerHTML = '';
+    ALGOS.forEach(algo => {
+      const frames = sortData[algo] || [];
+      panels[algo] = { frames, frameIndex: 0, done: false };
+
+      body.innerHTML += `
+        <div class="panel" id="panel-${algo}">
+          <div class="panel-header">
+            <span class="panel-algo-name" style="color:${ALGO_COLORS[algo]}">${ALGO_LABELS[algo]}</span>
+            <span class="panel-status" id="status-${algo}">Ready</span>
+          </div>
+          <div class="panel-stage" id="stage-${algo}">
+            <div style="color:var(--text-lo);margin:auto;font-size:0.75rem;">Loading…</div>
+          </div>
+          <div class="panel-footer">
+            <div class="panel-progress-wrap">
+              <div class="panel-progress-fill" id="prog-${algo}" style="width:0%;background:${ALGO_COLORS[algo]}"></div>
+            </div>
+            <span class="panel-frame-text" id="fc-${algo}">Frame 1 / ${frames.length}</span>
+          </div>
+        </div>`;
+    });
+    // Render first frame of each
+    ALGOS.forEach(algo => {
+      if (panels[algo].frames.length > 0) renderPanelFrame(algo, panels[algo].frames[0]);
+    });
+  }
+
+  function renderPanelFrame(algo, frame) {
+    const stage = document.getElementById('stage-' + algo);
+    if (!stage) return;
+    stage.innerHTML = '';
+    const order   = frame.order || frame;
+    const swaps   = frame.swapping  || [];
+    const compares= frame.comparing || [];
+    order.forEach(id => {
+      const img = document.createElement('img');
+      img.className = 'panel-slice';
+      img.src = sortData.paths[id] || '';
+      img.alt = 'slice-' + id;
+      if (swaps.includes(id))    img.classList.add('swapping');
+      if (compares.includes(id)) img.classList.add('comparing');
+      stage.appendChild(img);
+    });
+  }
+
+  function runPanel(algo) {
+    const p = panels[algo];
+    if (p.done) return;
+    clearInterval(timers[algo]);
+    timers[algo] = setInterval(() => {
+      if (p.frameIndex >= p.frames.length - 1) {
+        clearInterval(timers[algo]);
+        p.done = true;
+        document.getElementById('status-' + algo).textContent = 'Done ✓';
+        document.getElementById('status-' + algo).classList.add('done');
+        document.getElementById('prog-' + algo).style.width = '100%';
+        doneCount++;
+        if (!winnerDeclared) {
+          winnerDeclared = true;
+          const banner = document.getElementById('winner-banner');
+          banner.textContent = '🏆 ' + ALGO_LABELS[algo] + ' finished first!';
+          banner.classList.add('show');
+          document.getElementById('panel-' + algo).style.borderColor = '#34d399';
+          document.getElementById('status-' + algo).classList.add('winner');
+          document.getElementById('status-' + algo).textContent = '🏆 Winner';
+          setTimeout(() => banner.classList.remove('show'), 3500);
+        }
+        // Save to localStorage when all panels are done
+        if (doneCount === ALGOS.length) {
+          const vals = ALGOS.map(a => {
+            const stat = sortData.stats[a];
+            const frames = typeof stat === 'object' ? stat.frames : stat;
+            const frameCount = frames || sortData[a]?.length || 0;
+            const estimatedTime = ((frameCount * 120) / 1000).toFixed(2);
+            return { algo: a, frames: frameCount, time: estimatedTime };
+          });
+          const minFrames = Math.min(...vals.map(v => v.frames));
+          const winner = ALGOS.find(a => {
+            const stat = sortData.stats[a];
+            const frames = typeof stat === 'object' ? stat.frames : stat;
+            return (frames || sortData[a]?.length || 0) === minFrames;
+          });
+          localStorage.setItem('comparisonData_' + IMAGE_ID, JSON.stringify({
+            imageId: IMAGE_ID,
+            winner: winner,
+            stats: vals,
+            timestamp: new Date().toISOString()
+          }));
+        }
+        return;
+      }
+      p.frameIndex++;
+      renderPanelFrame(algo, p.frames[p.frameIndex]);
+      const pct = ((p.frameIndex / (p.frames.length - 1)) * 100).toFixed(1);
+      document.getElementById('prog-' + algo).style.width = pct + '%';
+      document.getElementById('fc-' + algo).textContent = 'Frame ' + (p.frameIndex + 1) + ' / ' + p.frames.length;
+      document.getElementById('status-' + algo).textContent = 'Running';
+    }, 120);
+  }
+
+  document.getElementById('btn-run-all').addEventListener('click', () => {
+    doneCount = 0; winnerDeclared = false;
+    ALGOS.forEach(algo => {
+      if (!panels[algo].done) runPanel(algo);
+    });
+  });
+
+  document.getElementById('btn-reset-all').addEventListener('click', () => {
+    ALGOS.forEach(algo => {
+      clearInterval(timers[algo]);
+      panels[algo].frameIndex = 0;
+      panels[algo].done = false;
+      document.getElementById('status-' + algo).textContent = 'Ready';
+      document.getElementById('status-' + algo).className = 'panel-status';
+      document.getElementById('prog-' + algo).style.width = '0%';
+      document.getElementById('fc-' + algo).textContent = 'Frame 1 / ' + panels[algo].frames.length;
+      document.getElementById('panel-' + algo).style.borderColor = '';
+      if (panels[algo].frames.length > 0) renderPanelFrame(algo, panels[algo].frames[0]);
+    });
+    doneCount = 0; winnerDeclared = false;
+  });
+
+  function buildSummary() {
+    if (!sortData?.stats) return;
+    const wrap = document.getElementById('comp-summary');
+    const vals = ALGOS.map(a => {
+      const stat = sortData.stats[a];
+      const frames = typeof stat === 'object' ? stat.frames : stat;
+      const frameCount = frames || sortData[a]?.length || 0;
+      const estimatedTime = ((frameCount * 120) / 1000).toFixed(2); // 120ms per frame
+      return { 
+        algo: a, 
+        frames: frameCount,
+        time: estimatedTime,
+        complexity: ALGO_COMPLEXITY[a]
+      };
+    });
+    const minFrames = Math.min(...vals.map(v => v.frames));
+    const minTime = Math.min(...vals.map(v => parseFloat(v.time)));
+    
+    wrap.innerHTML = vals.map(({ algo, frames, time, complexity }) => `
+      <div class="summary-card ${frames === minFrames ? 'best' : ''}">
+        <div class="summary-label">Algorithm</div>
+        <div class="summary-val" style="color:${ALGO_COLORS[algo]}">${ALGO_LABELS[algo]}</div>
+        
+        <div style="margin-top:0.8rem; border-top: 0.5px solid var(--border); padding-top:0.6rem;">
+          <div style="font-size:0.68rem; color:var(--text-lo); margin-bottom:0.3rem;">Frames</div>
+          <div style="font-size:1.2rem; font-weight:700; color:${ALGO_COLORS[algo]}; margin-bottom:0.6rem;">${frames}</div>
+          
+          <div style="font-size:0.68rem; color:var(--text-lo); margin-bottom:0.3rem;">Est. Time</div>
+          <div style="font-size:1rem; font-weight:700; color:var(--sky); margin-bottom:0.6rem;">${time}s</div>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; font-size:0.65rem; margin-bottom:0.8rem;">
+            <div>
+              <div style="color:var(--text-lo); margin-bottom:0.2rem;">Time</div>
+              <div style="color:var(--text-mid); font-weight:600;">${complexity.time}</div>
+            </div>
+            <div>
+              <div style="color:var(--text-lo); margin-bottom:0.2rem;">Space</div>
+              <div style="color:var(--text-mid); font-weight:600;">${complexity.space}</div>
+            </div>
+          </div>
+
+          <div style="border-top: 0.5px solid var(--border); padding-top:0.6rem;">
+            <div style="font-size:0.68rem; color:var(--text-lo); margin-bottom:0.3rem; font-weight:600;">🚀 Best Case</div>
+            <div style="font-size:0.75rem; color:var(--text-mid); margin-bottom:0.6rem; line-height:1.4;">${complexity.best}</div>
+            
+            <div style="font-size:0.68rem; color:var(--text-lo); margin-bottom:0.3rem; font-weight:600;">⚠️ Worst Case</div>
+            <div style="font-size:0.75rem; color:var(--text-mid); margin-bottom:0.6rem; line-height:1.4;">${complexity.worst}</div>
+            
+            <div style="font-size:0.68rem; color:var(--text-lo); margin-bottom:0.3rem; font-weight:600;">💡 Use When</div>
+            <div style="font-size:0.75rem; color:var(--text-mid); line-height:1.4;">${complexity.use_case}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+</script>
+</body>
+</html>
