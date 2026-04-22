@@ -1,3 +1,5 @@
+from urllib import response
+from django.contrib.auth.models import User
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import ImageSlice
@@ -831,6 +833,9 @@ def generate_report_pdf(request, image_id):
     response['Content-Disposition'] = (
         f'inline; filename="sorting_report_{image_id}.pdf"')
     response['Content-Length'] = str(len(pdf_bytes))
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Accept-Ranges']   = 'bytes'
+    response['Cache-Control']   = 'no-store'
     return response
 
 

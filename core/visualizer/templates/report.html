@@ -109,22 +109,48 @@
     .pdf-section-header {
       padding: 1rem 1.4rem; border-bottom: 0.5px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.6rem;
     }
     .pdf-header-title {
       font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
       text-transform: uppercase; color: var(--text-lo);
     }
-    .pdf-preview-frame {
-      width: 100%; height: 420px; border: none; background: var(--bg3);
-      display: block;
-    }
-    .pdf-placeholder {
-      height: 420px; display: flex; flex-direction: column;
+    .pdf-header-actions { display: flex; align-items: center; gap: 0.6rem; }
+    .pdf-loading {
+      height: 580px; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 1rem;
-      color: var(--text-lo);
+      color: var(--text-lo); background: var(--bg3);
     }
-    .pdf-placeholder-icon { font-size: 2.5rem; opacity: 0.4; }
-    .pdf-placeholder-text { font-size: 0.85rem; }
+    .pdf-loading-bar-wrap {
+      width: 180px; height: 2px; background: var(--border);
+      border-radius: 2px; overflow: hidden;
+    }
+    .pdf-loading-bar {
+      height: 100%; width: 40%; background: var(--sky);
+      border-radius: 2px; animation: pdfSlide 1.4s ease-in-out infinite;
+    }
+    @keyframes pdfSlide { 0%{transform:translateX(-100%)} 100%{transform:translateX(550%)} }
+    .pdf-loading-text { font-size: 0.8rem; }
+    .pdf-frame-wrap {
+      position: relative; width: 100%; height: 580px; background: var(--bg3);
+    }
+    .pdf-frame-wrap iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      border: none; display: block;
+    }
+    .pdf-fallback {
+      display: none; height: 580px;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 1.2rem; color: var(--text-lo); background: var(--bg3);
+    }
+    .pdf-fallback.show { display: flex; }
+    .pdf-fallback-icon { font-size: 2.2rem; opacity: 0.5; }
+    .pdf-fallback-text { font-size: 0.83rem; color: var(--text-mid); text-align: center; max-width: 340px; line-height: 1.6; }
+    .pdf-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 1.2rem; border-top: 0.5px solid var(--border);
+      background: var(--bg2); font-size: 0.75rem; color: var(--text-lo);
+    }
   </style>
 </head>
 <body>
@@ -218,13 +244,39 @@
     <div class="pdf-section reveal">
       <div class="pdf-section-header">
         <span class="pdf-header-title">PDF Report Preview</span>
-        <a href="/report/pdf/{{ image_id }}/" class="btn btn-solid" download="sorting_report_{{ image_id }}.pdf">⬇ Save PDF</a>
-      </div>
-      <div id="pdf-preview-area">
-        <div class="pdf-placeholder">
-          <div class="pdf-placeholder-icon">📄</div>
-          <div class="pdf-placeholder-text">Click "↓ Download PDF" button above to generate and view the report here.</div>
+        <div class="pdf-header-actions">
+          <button class="btn" id="btn-reload-pdf" title="Reload preview">↺ Reload</button>
+          <a href="/report/pdf/{{ image_id }}/" class="btn btn-solid" download="sorting_report_{{ image_id }}.pdf">⬇ Save PDF</a>
         </div>
+      </div>
+
+      <!-- Loading state (shown while iframe fetches) -->
+      <div class="pdf-loading" id="pdf-loading">
+        <div class="pdf-loading-bar-wrap"><div class="pdf-loading-bar"></div></div>
+        <span class="pdf-loading-text">Generating report…</span>
+      </div>
+
+      <!-- iframe holder (hidden until load) -->
+      <div class="pdf-frame-wrap" id="pdf-frame-wrap" style="display:none;">
+        <iframe id="pdf-iframe" title="PDF Report Preview"></iframe>
+      </div>
+
+      <!-- Fallback for browsers that block inline PDFs -->
+      <div class="pdf-fallback" id="pdf-fallback">
+        <div class="pdf-fallback-icon">📄</div>
+        <div class="pdf-fallback-text">
+          Your browser is blocking inline PDF rendering.<br>
+          Use the button below to open or download the report.
+        </div>
+        <div style="display:flex;gap:0.8rem;flex-wrap:wrap;justify-content:center;">
+          <a id="pdf-open-link" href="#" target="_blank" rel="noopener" class="btn">Open in new tab ↗</a>
+          <a id="pdf-download-link" href="#" download class="btn btn-solid">⬇ Download PDF</a>
+        </div>
+      </div>
+
+      <div class="pdf-toolbar">
+        <span id="pdf-status-text">Loading preview…</span>
+        <span style="color:var(--sky);font-size:0.7rem;">Powered by browser PDF viewer</span>
       </div>
     </div>
 
@@ -387,48 +439,77 @@
         }, 100);
       }
 
-      // PDF preview — load iframe on button click
-      const btn = document.getElementById('btn-pdf');
-      if (btn) {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const area = document.getElementById('pdf-preview-area');
-          const pdfUrl = '/report/pdf/' + IMAGE_ID + '/';
-          
-          console.log('Loading PDF preview from:', pdfUrl);
-          
-          // For PDF preview, use embed with PDF.js viewer or direct iframe
-          // Some browsers handle PDF natively in iframe, others need external viewer
-          area.innerHTML = `
-            <div style="width:100%;height:500px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
-              <embed src="${pdfUrl}" type="application/pdf" width="100%" height="100%" style="display:block;"/>
-            </div>
-          `;
-          
-          // Fallback: if embed doesn't work, provide download link
-          setTimeout(() => {
-            const embed = area.querySelector('embed');
-            if (!embed || !embed.offsetWidth) {
-              console.warn('PDF preview not supported in this browser, showing download option');
-              area.innerHTML = `
-                <div style="padding:2rem;text-align:center;background:var(--surface);border-radius:4px;">
-                  <div style="font-size:1.5rem;margin-bottom:1rem;">📄</div>
-                  <div style="margin-bottom:1rem;color:var(--text-mid);">PDF Preview not supported in your browser</div>
-                  <a href="${pdfUrl}" download="sorting_report_${IMAGE_ID}.pdf" 
-                     style="display:inline-block;padding:0.75rem 1.5rem;background:var(--sky);color:white;border-radius:4px;text-decoration:none;cursor:pointer;">
-                    ⬇ Download PDF Instead
-                  </a>
-                </div>
-              `;
+      // ── PDF preview: auto-load on page ready ────────────────
+      function loadPdfPreview() {
+        const pdfUrl     = '/report/pdf/' + IMAGE_ID + '/';
+        const loading    = document.getElementById('pdf-loading');
+        const frameWrap  = document.getElementById('pdf-frame-wrap');
+        const iframe     = document.getElementById('pdf-iframe');
+        const fallback   = document.getElementById('pdf-fallback');
+        const statusText = document.getElementById('pdf-status-text');
+
+        // Set fallback link hrefs
+        const openLink = document.getElementById('pdf-open-link');
+        const dlLink   = document.getElementById('pdf-download-link');
+        if (openLink) openLink.href = pdfUrl;
+        if (dlLink)   dlLink.href  = pdfUrl;
+
+        // Show loading
+        if (loading)   loading.style.display   = 'flex';
+        if (frameWrap) frameWrap.style.display  = 'none';
+        if (fallback)  fallback.classList.remove('show');
+        if (statusText) statusText.textContent  = 'Generating report…';
+
+        // Fetch PDF as blob to detect errors before assigning to iframe
+        fetch(pdfUrl, { headers: { 'Accept': 'application/pdf' } })
+          .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.blob();
+          })
+          .then(blob => {
+            if (blob.type !== 'application/pdf' && !blob.type.includes('pdf')) {
+              throw new Error('Not a PDF response: ' + blob.type);
             }
-          }, 500);
-          
-          // Scroll to preview
-          setTimeout(() => {
-            area.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-        });
+            const objectUrl = URL.createObjectURL(blob);
+            iframe.src = objectUrl;
+
+            // iframe onload fires when PDF viewer initialises
+            iframe.onload = () => {
+              if (loading)   loading.style.display  = 'none';
+              if (frameWrap) frameWrap.style.display = 'block';
+              if (statusText) statusText.textContent = 'Preview ready  ·  ' + (blob.size / 1024).toFixed(0) + ' KB';
+            };
+
+            // Safety timeout: if onload hasn't fired in 6 s, try fallback
+            setTimeout(() => {
+              if (frameWrap && frameWrap.style.display === 'none') {
+                showFallback(pdfUrl, loading, frameWrap, fallback, statusText);
+              }
+            }, 6000);
+          })
+          .catch(err => {
+            console.warn('PDF fetch/render error:', err);
+            showFallback(pdfUrl, loading, frameWrap, fallback, statusText);
+          });
       }
+
+      function showFallback(pdfUrl, loading, frameWrap, fallback, statusText) {
+        if (loading)   loading.style.display   = 'none';
+        if (frameWrap) frameWrap.style.display  = 'none';
+        if (fallback)  fallback.classList.add('show');
+        if (statusText) statusText.textContent  = 'Inline preview unavailable — use download link';
+        const openLink = document.getElementById('pdf-open-link');
+        const dlLink   = document.getElementById('pdf-download-link');
+        if (openLink) openLink.href = pdfUrl;
+        if (dlLink)   dlLink.href  = pdfUrl;
+      }
+
+      // Reload button
+      const reloadBtn = document.getElementById('btn-reload-pdf');
+      if (reloadBtn) reloadBtn.addEventListener('click', loadPdfPreview);
+
+      // Auto-load
+      loadPdfPreview();
     });
 
   function renderTimingChart(timingData, vals) {
