@@ -248,7 +248,7 @@ footer {
   .navbar { padding: 0 1.2rem; }
 }
 
-/* ---------- PAGE WRAPPER (for pages with navbar) ---------- */
+/* ---------- PAGE WRAPPER ---------- */
 .page-wrap { padding-top: 64px; min-height: 100vh; }
 
 /* ---------- DECORATIVE DOTS ---------- */
@@ -273,3 +273,407 @@ footer {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
+
+
+/* ============================================================
+   REGISTER PAGE
+   ============================================================ */
+
+/* Centered auth card — shared by login & register */
+.auth-wrap {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 5rem 1.2rem 3rem;
+  position: relative; z-index: 1;
+}
+
+.auth-card {
+  width: 100%; max-width: 440px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-hi);
+  border-radius: var(--radius-lg);
+  padding: 2.6rem 2.4rem 2.2rem;
+  box-shadow: 0 0 0 1px var(--border), 0 24px 64px rgba(0,0,0,0.55);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-card:focus-within {
+  border-color: var(--sky);
+  box-shadow: 0 0 0 1px var(--border-hi), 0 0 32px var(--sky-glow), 0 24px 64px rgba(0,0,0,0.55);
+}
+
+.auth-brand {
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--sky);
+  margin-bottom: 1.8rem;
+  display: flex; align-items: center; gap: 7px;
+}
+.auth-brand-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sky); display: inline-block;
+}
+
+.auth-title {
+  font-size: 1.65rem; font-weight: 700;
+  color: var(--text-hi); line-height: 1.15;
+  margin-bottom: 0.35rem;
+}
+.auth-sub {
+  font-size: 0.85rem; color: var(--text-mid);
+  line-height: 1.6; margin-bottom: 2rem;
+}
+
+/* Form inputs — used on register AND login */
+.form-group { margin-bottom: 1.25rem; }
+
+.form-label {
+  display: block; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-lo); margin-bottom: 0.45rem;
+}
+
+.form-input {
+  width: 100%; padding: 0.72rem 0.95rem;
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-hi);
+  font-family: var(--font); font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition), background var(--transition),
+              box-shadow var(--transition);
+}
+.form-input::placeholder { color: var(--text-lo); }
+.form-input:focus {
+  border-color: var(--sky);
+  background: var(--bg2);
+  box-shadow: 0 0 0 3px var(--sky-faint);
+}
+.form-input.error { border-color: rgba(248,113,113,0.6); }
+
+/* Password strength bar */
+.pwd-strength-wrap {
+  height: 2px; background: var(--border);
+  border-radius: 2px; margin-top: 0.45rem; overflow: hidden;
+}
+.pwd-strength-bar {
+  height: 100%; width: 0; border-radius: 2px;
+  transition: width 0.35s ease, background 0.35s ease;
+}
+.pwd-hint {
+  font-size: 0.7rem; color: var(--text-lo);
+  margin-top: 0.3rem; display: block;
+}
+
+/* Auth submit button */
+.auth-submit {
+  width: 100%; padding: 0.82rem;
+  border-radius: var(--radius); border: none;
+  background: var(--text-hi); color: #000000;
+  font-family: var(--font); font-size: 0.95rem; font-weight: 700;
+  letter-spacing: 0.04em; margin-top: 0.4rem;
+  transition: background var(--transition), color var(--transition),
+              box-shadow var(--transition);
+}
+.auth-submit:hover {
+  background: var(--sky); color: #000;
+  box-shadow: 0 0 20px var(--sky-glow);
+}
+.auth-submit:active { transform: scale(0.985); }
+
+/* Divider "or" */
+.auth-divider {
+  display: flex; align-items: center; gap: 0.8rem;
+  margin: 1.5rem 0; font-size: 0.7rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-lo);
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: ''; flex: 1; height: 0.5px; background: var(--border);
+}
+
+/* Footer link row */
+.auth-footer-link {
+  text-align: center; font-size: 0.82rem; color: var(--text-mid);
+}
+.auth-footer-link a {
+  color: var(--sky); font-weight: 600;
+}
+.auth-footer-link a:hover { color: var(--sky-dim); }
+
+/* Error message block */
+.auth-error {
+  background: rgba(248,113,113,0.08);
+  border: 0.5px solid rgba(248,113,113,0.3);
+  border-radius: var(--radius); padding: 0.7rem 0.95rem;
+  font-size: 0.82rem; color: #f87171; margin-bottom: 1.2rem;
+  display: flex; align-items: flex-start; gap: 0.5rem;
+}
+
+/* Floating theme/back corner on auth pages */
+.auth-corner {
+  position: fixed; top: 1.2rem; right: 1.5rem; z-index: 10;
+  display: flex; gap: 8px;
+}
+.auth-corner-btn {
+  display: flex; align-items: center; justify-content: center;
+  height: 34px; border-radius: 8px;
+  border: 0.5px solid var(--border);
+  background: transparent; color: var(--text-mid);
+  font-family: var(--font); font-size: 0.8rem;
+  transition: border-color var(--transition), color var(--transition);
+}
+.auth-corner-btn:hover { border-color: var(--border-hi); color: var(--sky); }
+.auth-corner-btn-icon { width: 34px; font-size: 1rem; }
+.auth-corner-btn-text { padding: 0 0.9rem; }
+
+
+/* ============================================================
+   PRE-SLICED VISUALIZER SECTION  (index.html addition)
+   ============================================================ */
+
+/* Section card — same width/style as upload card */
+.presliced-card {
+  max-width: 560px; margin: 2.5rem auto 0;
+  background: var(--surface);
+  border: 0.5px solid var(--border-hi);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+}
+
+.presliced-title {
+  font-size: 1.4rem; font-weight: 700;
+  color: var(--text-hi); margin-bottom: 0.4rem;
+}
+.presliced-sub {
+  font-size: 0.85rem; color: var(--text-mid);
+  margin-bottom: 1.8rem; line-height: 1.6;
+}
+
+/* Toggle checkbox row */
+.toggle-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 1.4rem;
+  transition: border-color var(--transition), background var(--transition);
+}
+.toggle-row:has(input:checked) {
+  border-color: var(--border-hi); background: var(--sky-faint);
+}
+.toggle-checkbox {
+  width: 16px; height: 16px; flex-shrink: 0;
+  accent-color: var(--sky);
+}
+.toggle-label {
+  font-size: 0.88rem; color: var(--text-mid);
+  font-weight: 500; line-height: 1.4;
+}
+.toggle-label strong { color: var(--sky); }
+
+/* Algorithm selector grid */
+.algo-select-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+  margin-bottom: 1.4rem;
+}
+.algo-option {
+  position: relative;
+}
+.algo-option input[type="radio"] {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+}
+.algo-option-label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.95rem;
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem; font-weight: 600; color: var(--text-mid);
+  transition: border-color var(--transition), color var(--transition),
+              background var(--transition);
+}
+.algo-option input[type="radio"]:checked + .algo-option-label {
+  border-color: var(--sky); color: var(--sky); background: var(--sky-faint);
+}
+.algo-option-label:hover {
+  border-color: var(--border-hi); color: var(--text-hi);
+}
+.algo-complexity {
+  font-size: 0.68rem; font-weight: 400;
+  color: var(--text-lo); letter-spacing: 0.04em;
+}
+.algo-option input[type="radio"]:checked + .algo-option-label .algo-complexity {
+  color: var(--sky-dim);
+}
+
+/* Start button */
+.presliced-submit {
+  width: 100%; padding: 0.88rem;
+  border-radius: var(--radius); border: none;
+  background: var(--text-hi); color: #000000;
+  font-family: var(--font); font-size: 0.95rem; font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: background var(--transition), color var(--transition),
+              box-shadow var(--transition);
+}
+.presliced-submit:hover {
+  background: var(--sky); color: #000;
+  box-shadow: 0 0 24px var(--sky-glow);
+}
+.presliced-submit:active { transform: scale(0.985); }
+.presliced-submit:disabled {
+  opacity: 0.4; pointer-events: none;
+}
+
+/* ── VISUALIZATION AREA ────────────────────────────────── */
+.viz-area {
+  display: none; /* shown via JS after Start */
+  margin-top: 1.8rem;
+  border-top: 0.5px solid var(--border);
+  padding-top: 1.5rem;
+}
+.viz-area.active { display: block; }
+
+.viz-area-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;
+}
+.viz-area-title {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-lo);
+}
+.viz-controls {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.viz-ctrl-btn {
+  height: 28px; padding: 0 0.7rem;
+  border-radius: 6px; border: 0.5px solid var(--border);
+  background: transparent; color: var(--text-mid);
+  font-family: var(--font); font-size: 0.75rem; font-weight: 600;
+  transition: all var(--transition);
+}
+.viz-ctrl-btn:hover { border-color: var(--border-hi); color: var(--sky); }
+.viz-ctrl-btn.playing { border-color: var(--sky); color: var(--sky); }
+
+/* Speed mini-slider */
+.viz-speed-wrap {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: var(--text-lo);
+}
+.viz-speed-slider {
+  width: 60px; -webkit-appearance: none;
+  height: 3px; background: var(--border-hi);
+  border-radius: 2px; outline: none;
+}
+.viz-speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--sky);
+  border: 2px solid var(--bg);
+}
+
+/* ── SLICE CONTAINER ───────────────────────────────────── */
+.slice-stage {
+  display: flex; align-items: flex-end;
+  gap: 3px; overflow-x: auto; overflow-y: hidden;
+  min-height: 160px; max-height: 220px;
+  padding: 0.8rem;
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  scrollbar-width: none;
+}
+.slice-stage::-webkit-scrollbar { display: none; }
+
+/* Individual slice block */
+.slice-block {
+  flex-shrink: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease,
+              opacity 0.25s ease;
+  position: relative;
+}
+.slice-block img {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+/* ── SLICE STATE ANIMATIONS ────────────────────────────── */
+
+/* Two slices being compared */
+.slice-block.highlight {
+  box-shadow: 0 0 0 2px var(--sky);
+  transform: scaleY(1.05);
+  z-index: 2;
+}
+
+/* Two slices mid-swap */
+.slice-block.swap {
+  box-shadow: 0 0 0 2px #fb923c;
+  transform: scaleY(1.1);
+  z-index: 3;
+  animation: swapPulse 0.32s ease;
+}
+@keyframes swapPulse {
+  0%   { opacity: 1; }
+  40%  { opacity: 0.5; transform: scaleY(1.15) translateY(-6px); }
+  100% { opacity: 1; transform: scaleY(1.1); }
+}
+
+/* Currently selected / pivot */
+.slice-block.active {
+  box-shadow: 0 0 0 2px #a78bfa;
+  transform: scaleY(1.06);
+  z-index: 2;
+}
+
+/* Merge group bracket — adds a faint sky overlay */
+.slice-block.merge-group::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(56,189,248,0.12);
+  pointer-events: none;
+  border-radius: 3px;
+}
+
+/* Element confirmed in correct position */
+.slice-block.sorted {
+  box-shadow: 0 0 0 1.5px rgba(52,211,153,0.7);
+  opacity: 0.9;
+}
+
+/* ── VIZ PROGRESS BAR ──────────────────────────────────── */
+.viz-progress-wrap {
+  height: 2px; background: var(--border);
+  border-radius: 2px; margin-top: 0.6rem; overflow: hidden;
+}
+.viz-progress-fill {
+  height: 100%; width: 0; background: var(--sky);
+  border-radius: 2px; transition: width 0.1s linear;
+}
+
+/* Step counter */
+.viz-step-counter {
+  font-size: 0.72rem; color: var(--text-lo);
+  text-align: right; margin-top: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── ALGO STATUS BADGE ─────────────────────────────────── */
+.algo-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--sky-faint); color: var(--sky);
+  border: 0.5px solid var(--border-hi);
+}
+.algo-badge.running { color: #fb923c; border-color: rgba(251,146,60,0.4); background: rgba(251,146,60,0.08); }
+.algo-badge.done    { color: #34d399; border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); }
+
+
+/* ============================================================
+   RESPONSIVE — new sections
+   ============================================================ */
+@media (max-width: 560px) {
+  .presliced-card { padding: 1.8rem 1.2rem; }
+  .algo-select-grid { grid-template-columns: 1fr; }
+  .auth-card { padding: 2rem 1.2rem 1.8rem; }
+  .viz-area-header { flex-direction: column; align-items: flex-start; }
+}

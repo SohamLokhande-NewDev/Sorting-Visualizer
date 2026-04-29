@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Array Visualizer · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    
+    .navbar {
+      flex: 0 0 auto;
+    }
+
+    .main-content {
+      flex: 1 1 auto;
+      display: flex;
+      padding: 2rem;
+      gap: 2rem;
+      height: calc(100vh - 70px);
+    }
+
+    /* Visualization side */
+    .vis-panel {
+      flex: 1;
+      background: var(--surface);
+      border: 0.5px solid var(--border-hi);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .vis-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--sky);
+    }
+
+    .bars-container {
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 10px;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+    }
+
+    .bar {
+      width: 40px;
+      background: var(--sky);
+      border-radius: 4px 4px 0 0;
+      transition: height 0.2s ease, background 0.2s ease;
+    }
+
+    .bar.active {
+      background: #f97316; /* orange */
+    }
+
+    .bar-label {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-hi);
+    }
+
+    /* Code side */
+    .code-panel {
+      flex: 0 0 500px;
+      background: #0f172a;
+      border: 0.5px solid var(--border-hi);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 0.8rem 1.2rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .mac-btn {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .mac-close { background: #ef4444; }
+    .mac-min { background: #eab308; }
+    .mac-max { background: #22c55e; }
+
+    .code-content {
+      flex: 1;
+      padding: 1.5rem;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #38bdf8;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .typing-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background: #38bdf8;
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="{% url 'index' %}">SortViz</a>
+  <div class="navbar-actions">
+    <a href="{% url 'index' %}" class="nav-btn">← Back</a>
+  </div>
+</nav>
+
+<div class="main-content">
+  <!-- Visualization Panel -->
+  <div class="vis-panel">
+    <div class="vis-header">
+      <div class="vis-title">Sorting: <span id="algo-name" style="color:var(--text-hi); text-transform: capitalize;">{{ algorithm }} Sort</span></div>
+      <button id="btn-replay" class="nav-btn" style="display:none;">Replay</button>
+    </div>
+    <div class="bars-container" id="bars-container">
+      <!-- Bars injected here -->
+    </div>
+  </div>
+
+  <!-- Code Panel -->
+  <div class="code-panel">
+    <div class="code-header">
+      <div class="mac-btn mac-close"></div>
+      <div class="mac-btn mac-min"></div>
+      <div class="mac-btn mac-max"></div>
+      <span style="margin-left: 10px;">sort.c</span>
+    </div>
+    <div class="code-content" id="code-content">
+      <span id="typed-text"></span><span class="typing-cursor"></span>
+    </div>
+  </div>
+</div>
+
+<!-- CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+  const arrayData = "{{ array_data|escapejs }}";
+  const algorithm = "{{ algorithm|escapejs }}";
+  
+  const barsContainer = document.getElementById('bars-container');
+  const typedText = document.getElementById('typed-text');
+  const btnReplay = document.getElementById('btn-replay');
+
+  let initialArray = [];
+  let frames = [];
+  let cCode = "";
+  let typeInterval = null;
+  let typingSpeed = 10;
+
+  async function fetchSortData() {
+    const res = await fetch(`/api/sort_array/?array_data=${encodeURIComponent(arrayData)}&algorithm=${algorithm}`);
+    const data = await res.json();
+    initialArray = data.initial;
+    frames = data.frames;
+    cCode = data.c_code;
+    
+    const funcName = algorithm + "_sort";
+    let relevantCode = cCode;
+    const startIndex = cCode.indexOf(`SortResult ${funcName}(`);
+    if (startIndex !== -1) {
+      let braceCount = 0;
+      let endIndex = startIndex;
+      let foundFirstBrace = false;
+      for (let i = startIndex; i < cCode.length; i++) {
+        if (cCode[i] === '{') {
+          braceCount++;
+          foundFirstBrace = true;
+        } else if (cCode[i] === '}') {
+          braceCount--;
+        }
+        if (foundFirstBrace && braceCount === 0) {
+          endIndex = i + 1;
+          break;
+        }
+      }
+      relevantCode = cCode.substring(startIndex, endIndex);
+    }
+    
+    initBars();
+    startTypewriter(relevantCode);
+    startVisualization(relevantCode.length);
+  }
+
+  function startTypewriter(text) {
+    typedText.textContent = "";
+    if (typeInterval) clearInterval(typeInterval);
+    
+    let i = 0;
+    typingSpeed = Math.max(1, Math.min(20, 3000 / text.length));
+    
+    typeInterval = setInterval(() => {
+      if (i < text.length) {
+        typedText.textContent += text.charAt(i);
+        i++;
+        const contentDiv = document.getElementById('code-content');
+        contentDiv.scrollTop = contentDiv.scrollHeight;
+      } else {
+        clearInterval(typeInterval);
+      }
+    }, typingSpeed);
+  }
+
+  function initBars() {
+    barsContainer.innerHTML = "";
+    const maxVal = Math.max(...initialArray);
+    
+    initialArray.forEach((val, i) => {
+      const barWrap = document.createElement('div');
+      barWrap.className = 'bar-wrapper';
+      
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.id = `bar-${i}`;
+      
+      const heightPct = Math.max(10, (val / maxVal) * 100);
+      bar.style.height = `${heightPct}%`;
+      
+      const label = document.createElement('div');
+      label.className = 'bar-label';
+      label.id = `bar-label-${i}`;
+      label.textContent = val;
+      
+      barWrap.appendChild(bar);
+      barWrap.appendChild(label);
+      barsContainer.appendChild(barWrap);
+    });
+  }
+
+  function updateBars(frameArray) {
+    const maxVal = Math.max(...initialArray);
+    frameArray.forEach((id, pos) => {
+      const val = initialArray[id];
+      const bar = document.getElementById(`bar-${pos}`);
+      const label = document.getElementById(`bar-label-${pos}`);
+      
+      const heightPct = Math.max(10, (val / maxVal) * 100);
+      bar.style.height = `${heightPct}%`;
+      label.textContent = val;
+    });
+  }
+
+  function startVisualization(textLength) {
+    btnReplay.style.display = 'none';
+    if (frames.length === 0) {
+      updateBars(initialArray.map((_, i) => i)); 
+      return;
+    }
+    
+    let currentFrame = 0;
+    
+    // Sync animation to roughly match the typing duration
+    const totalTypingTime = textLength * typingSpeed;
+    const frameSpeed = Math.max(150, totalTypingTime / frames.length);
+    
+    updateBars(frames[0]);
+    currentFrame++;
+    
+    const interval = setInterval(() => {
+      if (currentFrame < frames.length) {
+        updateBars(frames[currentFrame]);
+        currentFrame++;
+      } else {
+        clearInterval(interval);
+        btnReplay.style.display = 'block';
+      }
+    }, frameSpeed);
+  }
+
+  btnReplay.addEventListener('click', () => {
+    // restart typing effect and visualization
+    const textToType = typedText.textContent;
+    startTypewriter(textToType);
+    startVisualization(textToType.length);
+  });
+
+  // Init
+  fetchSortData();
+
+</script>
+</body>
+</html>

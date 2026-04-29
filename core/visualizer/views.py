@@ -412,12 +412,13 @@ def home(request):
     if request.method == "POST":
         image = request.FILES.get("image")
         num_slices = int(request.POST.get("num_slices", 20))
+        is_scrambled = request.POST.get("is_scrambled") == "on"
         if num_slices < 5:
             num_slices = 5
         elif num_slices > 1000:
             num_slices = 1000
         obj = ImageUpload.objects.create(
-            name=image.name, image=image, num_slices=num_slices)
+            name=image.name, image=image, num_slices=num_slices, is_scrambled=is_scrambled)
         return redirect(f'/processing/{obj.id}/')
     return render(request, 'index.html')
 
@@ -441,9 +442,13 @@ def report_page(request, image_id):
 
 
 def sort_visual(request, image_id):
-    slices = list(
-        ImageSlice.objects.filter(image_id=image_id).order_by('slice_index'))
-    shuffled        = get_shuffled_slices(slices)
+    img_obj = ImageUpload.objects.get(id=image_id)
+    slices = list(ImageSlice.objects.filter(image_id=image_id).order_by('slice_index'))
+    
+    if img_obj.is_scrambled:
+        shuffled = list(ImageSlice.objects.filter(image_id=image_id).order_by('id'))
+    else:
+        shuffled = get_shuffled_slices(slices)
     bubble_frames   = bubble_sort_frames(shuffled.copy())
     insertion_frames= insertion_sort_frames(shuffled.copy())
     quick_frames    = quick_sort_frames(shuffled.copy())
@@ -462,6 +467,57 @@ def sort_visual(request, image_id):
             "quick":     {"frames": len(quick_frames)},
             "merge":     {"frames": len(merge_frames)},
         },
+    })
+
+def array_visualizer(request):
+    if request.method == "POST":
+        array_data = request.POST.get("array_data")
+        algorithm = request.POST.get("algorithm")
+        return render(request, 'array_visualizer.html', {
+            'array_data': array_data,
+            'algorithm': algorithm
+        })
+    return redirect('index')
+
+def sort_array_api(request):
+    import os
+    array_data = request.GET.get("array_data", "")
+    algorithm = request.GET.get("algorithm", "bubble")
+    
+    try:
+        arr = [int(x.strip()) for x in array_data.split(",") if x.strip()]
+    except ValueError:
+        arr = []
+        
+    class DummySlice:
+        def __init__(self, _id, val):
+            self.id = _id
+            self.slice_index = val
+
+    slices = [DummySlice(i, val) for i, val in enumerate(arr)]
+    
+    if algorithm == "bubble":
+        frames = bubble_sort_frames(slices)
+    elif algorithm == "insertion":
+        frames = insertion_sort_frames(slices)
+    elif algorithm == "quick":
+        frames = quick_sort_frames(slices)
+    elif algorithm == "merge":
+        frames = merge_sort_frames(slices)
+    else:
+        frames = []
+
+    sort_c_path = os.path.join(os.path.dirname(__file__), 'sort.c')
+    try:
+        with open(sort_c_path, 'r') as f:
+            c_code = f.read()
+    except Exception:
+        c_code = "Code not found."
+
+    return JsonResponse({
+        "initial": arr,
+        "frames": frames,
+        "c_code": c_code
     })
 
 
@@ -861,3 +917,22 @@ def support_page(request):
 
 def faq_page(request):
     return render(request, 'faq.html')
+
+def register_view(request):
+    if request.method == "POST":
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if password != confirm_password:
+            return render(request, 'register.html', {'error': 'Passwords do not match'})
+        
+        if User.objects.filter(username=email).exists():
+            return render(request, 'register.html', {'error': 'Email already registered'})
+        
+        user = User.objects.create_user(username=email, email=email, password=password, first_name=name)
+        login(request, user)
+        return redirect('/')
+
+    return render(request, 'register.html')

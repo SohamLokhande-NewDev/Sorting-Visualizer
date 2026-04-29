@@ -1,0 +1,212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register · SortViz</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- floating corner controls -->
+<div class="auth-corner">
+  <a href="{% url 'index' %}" class="auth-corner-btn auth-corner-btn-text">← Home</a>
+  <button id="btn-theme" class="auth-corner-btn auth-corner-btn-icon">◑</button>
+</div>
+
+<!-- centered card -->
+<div class="auth-wrap">
+  <div class="auth-card reveal">
+
+    <!-- brand -->
+    <div class="auth-brand">
+      <span class="auth-brand-dot"></span>
+      SortViz
+    </div>
+
+    <h1 class="auth-title">Create Your Account</h1>
+    <p class="auth-sub">Join SortViz to save and explore visualizations.</p>
+
+    <!-- error block (Django renders if registration fails) -->
+    {% if error %}
+    <div class="auth-error">
+      <span>⚠</span>
+      <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- registration form -->
+    <form method="POST" action="{% url 'register' %}" id="register-form" novalidate>
+      {% csrf_token %}
+
+      <!-- Name -->
+      <div class="form-group">
+        <label class="form-label" for="reg-name">Full Name</label>
+        <input
+          class="form-input"
+          type="text"
+          id="reg-name"
+          name="name"
+          placeholder="Your full name"
+          autocomplete="name"
+          required
+          value="{{ form_data.name|default:'' }}"
+        >
+      </div>
+
+      <!-- Email -->
+      <div class="form-group">
+        <label class="form-label" for="reg-email">Email Address</label>
+        <input
+          class="form-input"
+          type="email"
+          id="reg-email"
+          name="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          required
+          value="{{ form_data.email|default:'' }}"
+        >
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label class="form-label" for="reg-password">Password</label>
+        <input
+          class="form-input"
+          type="password"
+          id="reg-password"
+          name="password"
+          placeholder="Min. 8 characters"
+          autocomplete="new-password"
+          required
+          minlength="8"
+        >
+        <!-- strength indicator -->
+        <div class="pwd-strength-wrap" aria-hidden="true">
+          <div class="pwd-strength-bar" id="pwd-bar"></div>
+        </div>
+        <span class="pwd-hint" id="pwd-hint">Enter a password to see strength</span>
+      </div>
+
+      <!-- Confirm Password -->
+      <div class="form-group">
+        <label class="form-label" for="reg-confirm">Confirm Password</label>
+        <input
+          class="form-input"
+          type="password"
+          id="reg-confirm"
+          name="confirm_password"
+          placeholder="Repeat your password"
+          autocomplete="new-password"
+          required
+        >
+        <span class="pwd-hint" id="confirm-hint" style="display:none;"></span>
+      </div>
+
+      <button type="submit" class="auth-submit" id="reg-submit">
+        Register →
+      </button>
+    </form>
+
+    <div class="auth-divider">or</div>
+
+    <div class="auth-footer-link">
+      Already have an account?
+      <a href="{% url 'login' %}">Login</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- cursor -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<canvas id="cursor-trail"></canvas>
+
+<script src="{% static 'js/base.js' %}"></script>
+<script>
+/* ── Password strength meter ────────────────────────── */
+const pwdInput  = document.getElementById('reg-password');
+const pwdBar    = document.getElementById('pwd-bar');
+const pwdHint   = document.getElementById('pwd-hint');
+
+function scorePassword(pwd) {
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd))    score++;
+  if (/[0-9]/.test(pwd))    score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  return score;
+}
+
+pwdInput.addEventListener('input', () => {
+  const pwd   = pwdInput.value;
+  const score = scorePassword(pwd);
+
+  const levels = [
+    { pct: '20%',  bg: '#ef4444', label: 'Very weak' },
+    { pct: '40%',  bg: '#f97316', label: 'Weak' },
+    { pct: '60%',  bg: '#eab308', label: 'Fair' },
+    { pct: '80%',  bg: '#38bdf8', label: 'Good' },
+    { pct: '100%', bg: '#34d399', label: 'Strong' },
+  ];
+
+  if (!pwd) {
+    pwdBar.style.width = '0';
+    pwdHint.textContent = 'Enter a password to see strength';
+    return;
+  }
+
+  const level = levels[Math.min(score - 1, 4)] || levels[0];
+  pwdBar.style.width      = level.pct;
+  pwdBar.style.background = level.bg;
+  pwdHint.textContent     = level.label;
+  pwdHint.style.color     = level.bg;
+});
+
+/* ── Confirm password match ─────────────────────────── */
+const confirmInput = document.getElementById('reg-confirm');
+const confirmHint  = document.getElementById('confirm-hint');
+
+function checkMatch() {
+  const match = pwdInput.value === confirmInput.value;
+  confirmHint.style.display = confirmInput.value ? 'block' : 'none';
+  if (!confirmInput.value) return;
+  if (match) {
+    confirmHint.textContent = '✓ Passwords match';
+    confirmHint.style.color = '#34d399';
+    confirmInput.classList.remove('error');
+  } else {
+    confirmHint.textContent = '✗ Passwords do not match';
+    confirmHint.style.color = '#f87171';
+    confirmInput.classList.add('error');
+  }
+}
+confirmInput.addEventListener('input', checkMatch);
+pwdInput.addEventListener('input',     checkMatch);
+
+/* ── Client-side validation before submit ───────────── */
+document.getElementById('register-form').addEventListener('submit', function (e) {
+  const pwd     = pwdInput.value;
+  const confirm = confirmInput.value;
+  const name    = document.getElementById('reg-name').value.trim();
+  const email   = document.getElementById('reg-email').value.trim();
+
+  if (!name || !email || !pwd || !confirm) return; // HTML5 handles empty fields
+  if (pwd !== confirm) {
+    e.preventDefault();
+    confirmInput.classList.add('error');
+    confirmHint.textContent = '✗ Passwords do not match';
+    confirmHint.style.color = '#f87171';
+    confirmHint.style.display = 'block';
+    confirmInput.focus();
+  }
+});
+</script>
+</body>
+</html>

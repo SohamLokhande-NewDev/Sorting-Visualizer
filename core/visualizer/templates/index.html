@@ -185,6 +185,7 @@
       <span style="font-size:0.85rem; color:var(--text-mid); margin-right:auto;">Welcome, <span style="color:var(--sky); font-weight:600;">{{ user.username }}</span></span>
     {% else %}
       <a href="{% url 'login' %}" id="btn-login" class="nav-btn">Login</a>
+      <a href="{% url 'register' %}" id="btn-register" class="nav-btn">Register</a>
     {% endif %}
     <button id="btn-theme" class="nav-btn" title="Toggle theme">◑</button>
     <div class="profile-wrap">
@@ -298,7 +299,33 @@
             <span class="slice-val" id="slice-display">20</span>
           </div>
         </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin-top: 1rem;">
+          <input type="checkbox" id="is-scrambled" name="is_scrambled" style="width:16px; height:16px; cursor:pointer;">
+          <label for="is-scrambled" class="form-label" style="margin-bottom:0; cursor:pointer; font-size:0.75rem; color:var(--sky);">Image is already scrambled (Auto-solve)</label>
+        </div>
         <button type="submit" class="upload-submit">Start Visualisation →</button>
+      </form>
+    </div>
+    
+    <div class="upload-card reveal" style="margin-top: 2rem;">
+      <div class="upload-title">Array Visualisation</div>
+      <div class="upload-sub">Type an array of numbers and watch the algorithm in action alongside its C code.</div>
+      <form method="POST" action="{% url 'array_visualizer' %}">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="array-input">Your Array (comma separated)</label>
+          <input class="form-input" type="text" id="array-input" name="array_data" placeholder="e.g. 45, 12, 89, 33, 5" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="algo-select">Algorithm</label>
+          <select class="form-input" id="algo-select" name="algorithm" required>
+            <option value="bubble">Bubble Sort</option>
+            <option value="insertion">Insertion Sort</option>
+            <option value="quick">Quick Sort</option>
+            <option value="merge">Merge Sort</option>
+          </select>
+        </div>
+        <button type="submit" class="upload-submit">Start Array Visualisation →</button>
       </form>
     </div>
   </section>
